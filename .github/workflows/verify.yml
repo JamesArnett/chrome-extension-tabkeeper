@@ -31,7 +31,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: ${{ always() }}
         with:
-          name: metrics-unit
+          name: unit-coverage
           path: reports/
           if-no-files-found: warn
           retention-days: 14
@@ -45,6 +45,11 @@ jobs:
           CHROME_URL=$(node -e 'const fs = require("node:fs"); const data = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/chrome-versions.json")); process.stdout.write(data.channels.Stable.downloads.chrome.find(d => d.platform === "linux64").url);')
           curl --fail --silent --show-error --location --retry 3 "$CHROME_URL" --output "$RUNNER_TEMP/chrome.zip"
           unzip -q "$RUNNER_TEMP/chrome.zip" -d "$RUNNER_TEMP/chrome"
+          # Ubuntu restricts user namespaces for downloaded Chrome builds. Install
+          # Google's matching sandbox helper on this disposable runner.
+          sudo install -o root -g root -m 4755 "$RUNNER_TEMP/chrome/chrome-linux64/chrome_sandbox" \
+            /usr/local/sbin/tabkeeper-chrome-sandbox
+          echo "CHROME_DEVEL_SANDBOX=/usr/local/sbin/tabkeeper-chrome-sandbox" >> "$GITHUB_ENV"
           echo "CHROME=$RUNNER_TEMP/chrome/chrome-linux64/chrome" >> "$GITHUB_ENV"
       - name: Browser integration tests
         run: npm run e2e

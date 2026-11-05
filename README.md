@@ -1,12 +1,7 @@
 # Tabkeeper
 
 [![CI](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/ci.yml)
-[![Unit coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FJamesArnett%2Fchrome-extension-tabkeeper%2Fbadges%2Fcoverage.json)](https://github.com/JamesArnett/chrome-extension-tabkeeper/blob/badges/metrics.json)
-[![Unit tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FJamesArnett%2Fchrome-extension-tabkeeper%2Fbadges%2Ftests.json)](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/ci.yml)
-[![CodeQL findings](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FJamesArnett%2Fchrome-extension-tabkeeper%2Fbadges%2Fcodeql.json)](https://github.com/JamesArnett/chrome-extension-tabkeeper/security/code-scanning)
-[![Dependency vulnerabilities](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FJamesArnett%2Fchrome-extension-tabkeeper%2Fbadges%2Fdependencies.json)](https://github.com/JamesArnett/chrome-extension-tabkeeper/blob/badges/metrics.json)
-[![Release](https://img.shields.io/github/v/release/JamesArnett/chrome-extension-tabkeeper)](https://github.com/JamesArnett/chrome-extension-tabkeeper/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Security](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/security.yml)
 
 A Chrome extension that closes tabs you never need to keep open: Zoom "redirecting to the app"
 pages, AWS post-login confirmation windows, and anything else you can describe with a title or URL
@@ -138,10 +133,11 @@ upload that version and optionally submit it for review. Store publishing requir
 credentials configured in GitHub's `chrome-web-store` environment. See [the release guide](docs/RELEASING.md)
 for setup and publishing steps.
 
-CodeQL scans JavaScript and GitHub Actions; OSV-Scanner checks package dependencies. CI runs these on pushes,
+CodeQL scans JavaScript and GitHub Actions; OSV-Scanner checks package dependencies. The Security workflow runs these on pushes,
 pull requests, and weekly. Releases are blocked by high/critical CodeQL findings or any dependency vulnerability.
-README metrics come from the latest completed main-branch CI run, with generated data kept on a separate `badges`
-branch. Unit coverage measures code exercised by Node tests; browser integration tests run separately. See
+The README uses GitHub-native workflow status badges. Coverage percentages, test totals and security counts
+appear in Actions job summaries and downloadable reports. Unit coverage measures code exercised by Node tests;
+browser integration tests run separately. See
 [security checks and local setup](docs/SECURITY_CHECKS.md) for scope, reports, and scanner installation.
 
 Permissions used: `tabs` (read titles and URLs, close tabs), `tabGroups` (countdown labels and
