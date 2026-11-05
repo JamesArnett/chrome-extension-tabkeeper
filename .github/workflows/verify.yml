@@ -1,0 +1,56 @@
+name: Verify extension
+
+on:
+  workflow_call:
+    inputs:
+      release-tag:
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.release-tag && format('refs/tags/{0}', inputs.release-tag) || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Validate version and release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        run: node scripts/check-release.mjs
+      - run: npm run coverage:ci
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: ${{ always() }}
+        with:
+          name: metrics-unit
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14
+      - run: npm run package
+      - name: Install Chrome for Testing from Google's stable channel
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json \
+            --output "$RUNNER_TEMP/chrome-versions.json"
+          CHROME_URL=$(node -e 'const fs = require("node:fs"); const data = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/chrome-versions.json")); process.stdout.write(data.channels.Stable.downloads.chrome.find(d => d.platform === "linux64").url);')
+          curl --fail --silent --show-error --location --retry 3 "$CHROME_URL" --output "$RUNNER_TEMP/chrome.zip"
+          unzip -q "$RUNNER_TEMP/chrome.zip" -d "$RUNNER_TEMP/chrome"
+          echo "CHROME=$RUNNER_TEMP/chrome/chrome-linux64/chrome" >> "$GITHUB_ENV"
+      - name: Browser integration tests
+        run: npm run e2e
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tabkeeper-package
+          path: dist/tabkeeper-*.zip
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tabkeeper settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body class="options">
+  <header class="bar">
+    <h1 id="page-title">Tabkeeper settings</h1>
+    <span class="pause-wrap">
+      <span id="pause-label" class="pause-label"></span>
+      <select id="pause-select" title="Pause closing on this machine"></select>
+      <button type="button" id="open-in-tab" hidden title="Open the full settings page with every rule">All rules</button>
+      <a id="welcome-guide" class="help-link" href="../help/guide.html" target="_blank" rel="noopener" title="Open the welcome page and guide">Help</a>
+      <a class="help-link" href="../help/guide.html#privacy" target="_blank" rel="noopener">Privacy</a>
+    </span>
+  </header>
+
+  <p id="stale-banner" class="notice warn" hidden>
+    <span>Extension files changed since the background worker started.</span>
+    <button type="button" id="reload-extension">Reload extension</button>
+  </p>
+
+  <section id="pending-section" hidden>
+    <h2>Closing soon <span class="count muted small">(these tabs sit in the red "Closing" group at the end of the tab strip)</span></h2>
+    <ul id="pending-list" class="list"></ul>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Rule type">
+    <button type="button" class="tab" role="tab" data-view="close" id="tab-close" aria-selected="true">Close</button>
+    <button type="button" class="tab" role="tab" data-view="group" id="tab-group" aria-selected="false">Group</button>
+    <button type="button" class="tab" role="tab" data-view="aws" id="tab-aws" aria-selected="false">AWS</button>
+  </nav>
+
+  <!-- ======================= CLOSE VIEW ======================= -->
+  <div id="view-close" role="tabpanel">
+  <section id="rules-section">
+    <div class="section-head">
+      <h2>Close rules</h2>
+      <span class="actions tight">
+        <button type="button" id="test-close" title="What would the close rules do with the tab you were on?">Test current tab</button>
+        <button type="button" id="add-rule">Add rule</button>
+      </span>
+    </div>
+    <div id="close-test-result" class="result" hidden></div>
+    <p id="rules-empty" class="muted">No rules yet. Add one to start closing tabs automatically.</p>
+    <ul id="rule-list" class="list"></ul>
+    <p id="rules-filter-note" class="muted small" hidden></p>
+  </section>
+
+  <section id="form-section" hidden>
+    <h2 id="form-title">New rule</h2>
+    <p id="draft-notice" class="notice" hidden>Restored unsaved changes.</p>
+    <p id="prefill-notice" class="notice" hidden>Pre-filled from the current tab. Trim anything too specific, such as meeting ids.</p>
+    <form id="rule-form" novalidate>
+      <label class="field">
+        <span>Name</span>
+        <input name="name" maxlength="100" autocomplete="off" placeholder="Zoom redirect">
+      </label>
+      <p class="error" data-error="name"></p>
+
+      <fieldset>
+        <legend>Title</legend>
+        <div class="row">
+          <select name="titleMode"></select>
+          <input name="titlePattern" autocomplete="off" placeholder="Leave empty to ignore the title">
+        </div>
+        <label class="inline"><input type="checkbox" name="titleCase"> Case-sensitive</label>
+        <p class="error" data-error="title"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>URL</legend>
+        <div class="row">
+          <select name="urlMode"></select>
+          <input name="urlPattern" autocomplete="off" placeholder="Leave empty to ignore the URL">
+        </div>
+        <label class="inline"><input type="checkbox" name="urlCase"> Case-sensitive</label>
+        <p class="error" data-error="url"></p>
+      </fieldset>
+      <p class="error" data-error="conditions"></p>
+
+      <label class="field delay">
+        <span>Close after</span>
+        <input type="number" name="delay" min="0" max="86400" step="1" inputmode="numeric">
+        <span>seconds</span>
+      </label>
+      <p class="error" data-error="delaySeconds"></p>
+
+      <label class="field delay">
+        <span>Move to the Closing group after</span>
+        <input type="number" name="groupAfter" min="0" max="86400" step="1" inputmode="numeric">
+        <span>seconds</span>
+      </label>
+      <small class="muted">0 = immediately. A few seconds of grace stops a login page that bounces straight back to where it came from
+        (GitLab → Okta → GitLab) from visibly leaving its group. Set it to the close delay or more to never group tabs of this rule.</small>
+      <p class="error" data-error="groupAfterSeconds"></p>
+
+      <div class="actions">
+        <button type="submit" id="save-rule" class="primary">Save</button>
+        <button type="button" id="cancel-rule">Cancel</button>
+      </div>
+    </form>
+  </section>
+
+  <details id="auto-close-details">
+    <summary>Automatic closing &amp; options</summary>
+    <div class="limit-row">
+      <label class="inline"><input type="checkbox" id="opt-open-enabled"> Close tabs open longer than</label>
+      <input type="number" id="opt-open-value" min="1" step="1" inputmode="numeric">
+      <select id="opt-open-unit"></select>
+    </div>
+    <div class="limit-row">
+      <label class="inline"><input type="checkbox" id="opt-idle-enabled"> Close tabs not used for</label>
+      <input type="number" id="opt-idle-value" min="1" step="1" inputmode="numeric">
+      <select id="opt-idle-unit"></select>
+    </div>
+    <p class="error" id="opt-error"></p>
+    <label class="field">
+      <span>Never close these (one per line; matched against the tab's URL and title)</span>
+      <textarea id="opt-never-close" class="wide" rows="3" spellcheck="false" placeholder="mail.example.com&#10;calendar&#10;gitlab.example.com/-/merge_requests"></textarea>
+      <small>Age-based closing leaves matching tabs alone. Close rules are explicit and still apply.</small>
+    </label>
+    <label class="inline"><input type="checkbox" id="opt-collapse"> Keep the "Closing" group collapsed</label>
+    <p class="muted small">
+      Age limits are checked once a minute and closed quietly: no countdown group, no "Closing soon" entry, but
+      every close is listed under Recent closes. Never closed this way: pinned tabs, the active tab in each
+      window, tabs playing audio, and tabs that asked "Leave site?" when closing was attempted (they are left
+      alone from then on). "Not used" means not brought to the front, as reported by Chrome. "Open" counts from
+      when Tabkeeper first saw the tab, so after a browser restart the clock starts again.
+    </p>
+  </details>
+
+  <details id="log-details">
+    <summary>Recent closes <span id="log-count" class="count"></span></summary>
+    <p id="log-empty" class="muted">Nothing closed yet.</p>
+    <ul id="log-list" class="list"></ul>
+    <div class="actions">
+      <button type="button" id="clear-log">Clear log</button>
+    </div>
+  </details>
+  </div>
+
+  <!-- ======================= GROUP VIEW ======================= -->
+  <div id="view-group" role="tabpanel" hidden>
+  <section id="group-settings">
+    <label class="field delay">
+      <span>Max group title length</span>
+      <input type="number" id="title-limit" min="0" max="200" step="1" inputmode="numeric">
+      <button type="button" id="save-limit">Save</button>
+    </label>
+    <p class="muted small">0 = no limit. Shortens the base title with …, never the status. Per machine.</p>
+    <p id="limit-status" class="notice" hidden></p>
+  </section>
+
+  <section id="group-rules-section">
+    <div class="section-head">
+      <h2>Grouping rules</h2>
+      <span class="actions tight">
+        <button type="button" id="apply-group" title="Run the saved rules against the tab you were on">Apply to current tab</button>
+        <button type="button" id="apply-all" title="Run the saved rules against every open tab">Apply to all open tabs</button>
+        <button type="button" id="add-group-rule">Add rule</button>
+      </span>
+    </div>
+    <p id="apply-status" class="notice" hidden></p>
+    <p id="group-rules-empty" class="muted">No grouping rules yet. Start from a preset or add your own.</p>
+    <ul id="group-rule-list" class="list"></ul>
+    <p id="group-rules-filter-note" class="muted small" hidden></p>
+  </section>
+
+  <section id="group-form-section" hidden>
+    <h2 id="group-form-title">New grouping rule</h2>
+    <p id="group-draft-notice" class="notice" hidden>Restored unsaved changes.</p>
+    <div class="row preset-row">
+      <label class="field grow">
+        <span>Start from a preset</span>
+        <select id="preset-select"></select>
+      </label>
+      <a id="full-guide" href="../help/guide.html" target="_blank" rel="noopener">Full guide</a>
+    </div>
+    <p id="preset-notes" class="notice" hidden></p>
+
+    <form id="group-form" novalidate>
+      <fieldset>
+        <legend>1. Which tabs?</legend>
+        <label class="field">
+          <span>Rule name</span>
+          <input name="name" maxlength="100" autocomplete="off" placeholder="Jira tickets">
+          <small>Only shown in this list. Blank = the group title.</small>
+        </label>
+        <p class="error" data-error="name"></p>
+        <label class="field">
+          <span>URL regex</span>
+          <input name="regex" autocomplete="off" spellcheck="false" placeholder="/browse/([A-Z]+-\d+)">
+          <small>JavaScript regex, no slashes or flags. Tried on the URL, then on the tab title. Wrap the part you want in ( ) to use it as $1.</small>
+        </label>
+        <p class="error" data-error="regex"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>2. What should the tab group be called?</legend>
+        <label class="field">
+          <span>Group title</span>
+          <input name="titleTemplate" autocomplete="off" spellcheck="false" placeholder="$1">
+          <small>Plain text puts every matching tab in one group. $1…$9 insert captured parts so each ticket gets its own group.</small>
+        </label>
+        <p class="error" data-error="titleTemplate"></p>
+        <div class="swatches" id="swatches" role="radiogroup" aria-label="Group colour"></div>
+        <p class="error" data-error="color"></p>
+        <div class="radios" role="radiogroup" aria-label="Colour mode">
+          <label><input type="radio" name="colorMode" value="fixed"> Always this colour</label>
+          <label><input type="radio" name="colorMode" value="random"> Random colour per new group</label>
+          <label><input type="radio" name="colorMode" value="title"> Same colour for the same title</label>
+        </div>
+        <small class="muted">Random and same-colour modes only apply when the title uses $1; a fixed title always uses the chosen colour.</small>
+      </fieldset>
+
+      <fieldset>
+        <legend>3. Show a status from the page? (optional)</legend>
+        <label class="inline"><input type="checkbox" name="statusEnabled"> Append a status read from the page, e.g. <code>ABC-123 - In Progress</code></label>
+        <div id="status-block" hidden>
+          <p class="muted small">Tabkeeper reads your configured status fields and keeps the group title updated as they change.</p>
+          <details class="explainer">
+            <summary>What is a CSS selector and how do I get one?</summary>
+            <ol>
+              <li>Right-click the status text on the page and choose <strong>Inspect</strong>.</li>
+              <li>In the highlighted line, prefer <code>id</code>, <code>data-testid</code> or <code>aria-label</code> over generated class names like <code>.css-1x2y3z</code>.</li>
+              <li>Write it as <code>#the-id</code>, <code>[data-testid="the-value"]</code> or <code>[aria-label="The label"]</code>.</li>
+              <li>Paste it below and click <strong>Test on current tab</strong>. Separate fallbacks with commas; they are tried in order.</li>
+            </ol>
+          </details>
+          <div id="status-fields"></div>
+          <div class="actions">
+            <button type="button" id="add-status-field">Add another status field</button>
+          </div>
+          <label class="field">
+            <span>Site origin</span>
+            <input name="siteOrigin" autocomplete="off" spellcheck="false" placeholder="https://jira.example.com">
+            <small>The site to grant page access for. Pre-filled from the current tab.</small>
+          </label>
+          <p class="error" data-error="siteOrigin"></p>
+          <div class="permission-note" id="group-permission-note" aria-label="Site access for live status">
+            <strong>Why allow site access?</strong>
+            <p id="group-permission-save"></p>
+            <p id="group-permission-test"></p>
+            <p>Chrome grants access to pages on the approved site, not just one status field. Tabkeeper uses your
+              selectors on matching tabs to read status text or form values for group titles. Nothing is sent to the developer.</p>
+            <p>You can decline: closing and basic grouping still work, without page status.
+              <a href="../help/guide.html#privacy" target="_blank" rel="noopener">What is read, stored and shared</a></p>
+          </div>
+        </div>
+      </fieldset>
+
+      <p class="error" data-error="form"></p>
+      <div class="actions">
+        <button type="submit" id="save-group-rule" class="primary">Add rule</button>
+        <button type="button" id="test-group-rule">Test on current tab</button>
+        <button type="button" id="cancel-group-rule">Cancel</button>
+      </div>
+    </form>
+    <div id="test-result" class="result" hidden></div>
+  </section>
+  </div>
+
+  <!-- ======================= AWS VIEW ======================= -->
+  <div id="view-aws" role="tabpanel" hidden>
+  <section>
+    <h2>AWS Console tabs</h2>
+    <p class="muted">
+      Puts every AWS Console tab into a tab group named after the account and role you are signed in as,
+      read from the console's navigation bar once the page has loaded. Tabs for the same account and role
+      share a group in each window. Switching roles moves the tab to the matching group. The sign-in page
+      itself is not grouped.
+    </p>
+    <div class="permission-note" id="aws-permission-note">
+      <strong>Why allow AWS site access?</strong>
+      <p>Enabling, testing or granting access requests <code>https://*.console.aws.amazon.com/*</code>, covering
+        the console and its regional and account subdomains. Chrome grants page access across these sites.</p>
+      <p>Tabkeeper reads account, role and user labels from the console navigation, plus the region from the URL,
+        to name tab groups. It does not call AWS APIs or use AWS access keys. Nothing is sent to the developer.</p>
+      <p>You can decline or revoke access; AWS account grouping needs it, but closing and basic grouping do not.
+        <a href="../help/guide.html#privacy" target="_blank" rel="noopener">Permissions and privacy details</a></p>
+    </div>
+    <label class="inline"><input type="checkbox" id="aws-enabled" aria-describedby="aws-permission-note"> <strong>Group AWS Console tabs</strong></label>
+    <p id="aws-access" class="notice warn" hidden>
+      <span>The extension cannot read the AWS Console yet. Grant access, or if you already did, check that
+        Chrome's "Site access" for this extension is not set to "On click".</span>
+      <span class="actions tight">
+        <button type="button" id="aws-grant">Grant access</button>
+        <button type="button" id="aws-settings">Extension settings</button>
+      </span>
+    </p>
+  </section>
+
+  <section id="aws-options">
+    <h2>Group title</h2>
+    <p class="muted small">Tick what to show. Fields appear in this order.</p>
+    <div id="aws-fields"></div>
+    <label class="field delay">
+      <span>Separator</span>
+      <select id="aws-separator"></select>
+    </label>
+    <p class="small">Preview: <strong id="aws-preview"></strong></p>
+    <p class="muted small">Colours are picked at random when a group is created. Account labels appear in tab group titles and temporary browser-session state; there is no separate saved account list.</p>
+
+    <details class="explainer">
+      <summary>Advanced: where the account and role are read from</summary>
+      <label class="field">
+        <span>Account label selector</span>
+        <input id="aws-sel-account" autocomplete="off" spellcheck="false">
+        <small>Element whose text is "Account name (123456789012)". The name and id are split automatically.</small>
+      </label>
+      <label class="field">
+        <span>Role selector</span>
+        <input id="aws-sel-role" autocomplete="off" spellcheck="false">
+        <small>Alternatives tried in order; the first element whose whole text looks like <code>role/user</code> wins. Everything before the slash is the role.</small>
+      </label>
+      <label class="field">
+        <span>Console URL regex</span>
+        <input id="aws-url-pattern" autocomplete="off" spellcheck="false">
+        <small>Tabs whose URL matches are treated as console tabs.</small>
+      </label>
+      <p class="error" id="aws-advanced-error"></p>
+      <div class="actions"><button type="button" id="aws-reset">Reset to defaults</button></div>
+    </details>
+
+    <div class="actions">
+      <button type="button" id="aws-test">Test on current tab</button>
+      <button type="button" id="aws-apply">Apply to current tab</button>
+    </div>
+    <p id="aws-status" class="notice" hidden></p>
+    <div id="aws-result" class="result" hidden></div>
+  </section>
+  </div>
+
+  <details id="privacy-details">
+    <summary>Permissions &amp; privacy</summary>
+    <p>Tabkeeper reads open-tab titles and URLs to match your rules, even without site access. Reading status
+      fields or AWS labels inside a page needs your separate approval. You can remove that approval in Chrome's extension settings.</p>
+    <p>Rules and settings use Chrome Sync if enabled. The last 100 closed-tab titles and URLs, plus unfinished
+      forms, stay on this device. Status and account labels are used in group titles and temporary session state.</p>
+    <p>No analytics, ads or developer data collection. Tabkeeper makes no network requests. Avoid putting secrets
+      in rules or choosing status selectors that read sensitive fields.
+      <a href="../help/guide.html#privacy" target="_blank" rel="noopener">Read the full permissions and data explanation</a></p>
+  </details>
+
+  <!-- shared: import / export of everything -->
+  <details id="io-details">
+    <summary>Import / export all settings</summary>
+    <div class="actions">
+      <button type="button" id="export-rules">Download everything as JSON</button>
+    </div>
+    <label class="field">
+      <span>Paste an export to import</span>
+      <textarea id="import-text" rows="4" spellcheck="false"></textarea>
+    </label>
+    <div class="actions">
+      <button type="button" id="import-rules">Import</button>
+    </div>
+    <p class="muted small">Covers close rules, grouping rules, AWS Console settings and options. Rules with a matching id are updated, others are added; settings in the file replace the current ones.</p>
+    <p id="io-status" class="notice" hidden></p>
+  </details>
+
+  <script src="../src/status-core.js"></script>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

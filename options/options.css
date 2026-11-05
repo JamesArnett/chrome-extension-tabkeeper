@@ -1,0 +1,20 @@
+@import url("../popup/popup.css");
+
+body.options { width: auto; max-width: 860px; margin: 0 auto; padding: 16px 28px 40px; }
+body.options .bar h1 { font-size: 18px; }
+.help-link { color: var(--accent); white-space: nowrap; }
+.permission-note { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-alt); font-size: 12px; overflow-wrap: anywhere; }
+.permission-note p { margin: 6px 0 0; }
+.permission-note a, #privacy-details a { color: var(--accent); }
+body.options .tabs .tab { font-size: 14px; padding: 8px 16px; }
+body.options fieldset { padding: 12px; }
+body.options .list .head .name { white-space: normal; }
+.radios { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0; }
+.radios label { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
+textarea.wide { width: 100%; min-height: 70px; }
+
+/* Toolbar popup (options.html?popup=1). Chrome caps popups at 800 x 600. */
+body.options.in-popup { width: 630px; max-width: none; margin: 0; padding: 0 12px 12px; }
+body.options.in-popup .bar h1 { font-size: 15px; }
+body.options.in-popup .tabs .tab { font-size: 13px; padding: 6px 12px; }
+body.options.in-popup .list .head .name { white-space: nowrap; }
