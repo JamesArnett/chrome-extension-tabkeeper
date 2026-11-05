@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, rmSync, appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -50,7 +50,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       .map((f) => JSON.parse(readFileSync(`reports/codeql/${f}`, 'utf8')));
     const summary = summarizeSarif(documents);
     writeFileSync('reports/codeql.json', JSON.stringify(summary));
-    console.log(`CodeQL: ${summary.findings} findings, ${summary.blocking} high/critical or error findings.`);
+    const message = `CodeQL: ${summary.findings} findings, ${summary.blocking} high/critical or error findings.`;
+    console.log(message);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## CodeQL\n\n${message}\n`);
     if (summary.blocking) process.exitCode = 1;
   } else if (mode === 'osv') {
     rmSync('reports/dependencies.json', { force: true });
@@ -77,7 +79,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       if (declared && !summary.packages) throw new Error('OSV did not discover the declared dependencies.');
     } else throw new Error(`OSV scan failed (exit ${scan.status}).`);
     writeFileSync('reports/dependencies.json', JSON.stringify(summary));
-    console.log(`OSV: ${summary.packages} packages, ${summary.vulnerabilities} vulnerable package/advisory pairs.`);
+    const message = `OSV: ${summary.packages} packages, ${summary.vulnerabilities} vulnerable package/advisory pairs.`;
+    console.log(message);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Dependency vulnerabilities\n\n${message}\n\n${summary.note ?? ''}\n`);
     if (summary.vulnerabilities) process.exitCode = 1;
   } else throw new Error('Expected codeql or osv.');
 }

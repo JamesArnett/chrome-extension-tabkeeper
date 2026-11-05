@@ -7,7 +7,8 @@ Chrome Web Store. Google still controls review and approval. Nothing has been up
 
 | Workflow | Trigger | Result |
 | --- | --- | --- |
-| CI | Branch pushes, pull requests, manual runs and weekly | Node 20 compatibility; Node 24 coverage, package validation and Chrome tests; CodeQL and OSV scans. Saves reports and ZIP; updates main-branch README badges. |
+| CI | Branch pushes, pull requests, manual runs and weekly | Node 20 compatibility; Node 24 coverage, package validation and Chrome tests. Saves reports and ZIP; writes measured test/coverage summaries. |
+| Security | Branch pushes, pull requests, manual runs and weekly | CodeQL and OSV scans, native status badge, job summaries with finding counts and downloadable reports. Also reused to gate releases. |
 | Release | Push a `v<version>` tag | Repeats validation, browser tests and security scans, then creates a GitHub release containing the tested ZIP. |
 | Chrome Web Store | Actions → Chrome Web Store → Run workflow | Checks out, tests and scans the supplied tag, uploads its tested ZIP as a draft, and optionally submits it for review. |
 
@@ -48,8 +49,8 @@ configuration options, not extra application requirements. The GitHub Release wo
 ## Before the first public release
 
 Run `npm run security` locally after installing the scanners, plus `npm run coverage:ci`, `npm run package` and
-the browser integration tests. GitHub badge publication and code-scanning upload can only be verified after the
-first push. Enable GitHub secret scanning/push protection and require CI through the repository's rulesets.
+the browser integration tests. GitHub-native workflow badges and code-scanning uploads are verified by the pushed runs. Enable GitHub secret
+scanning/push protection and require both CI and Security checks through the repository's rulesets.
 
 Automated checks cover matching, countdown groups, Keep, age closing, popup/settings, injected status readers,
 and a grouping alarm waking a stopped worker. They pre-grant fixture host permissions. They cannot certify

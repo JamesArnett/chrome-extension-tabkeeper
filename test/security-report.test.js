@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { summarizeSarif, summarizeOsv } from '../scripts/security-report.mjs';
-import { makeBadges } from '../scripts/repo-metrics.mjs';
 import reporter from '../scripts/coverage-reporter.mjs';
 
 const sarif = (results, extra = {}) => ({ version: '2.1.0', runs: [{
@@ -32,22 +31,6 @@ test('OSV count treats aliases as one advisory for each affected package', () =>
     { package: { name: 'second' }, vulnerabilities: [{ id: 'CVE-1' }], groups: [{ ids: ['CVE-1'] }] },
     { package: { name: 'clean' } },
   ] }] }), { packages: 3, vulnerabilities: 2 });
-});
-
-test('missing reports and failed tests cannot produce optimistic badges', () => {
-  for (const b of Object.values(makeBadges({}))) {
-    assert.equal(b.message, 'unavailable');
-    assert.equal(b.color, 'lightgrey');
-  }
-  const badges = makeBadges({
-    unit: { coverage: { coveredLinePercent: 99 }, tests: { tests: 10, passed: 9, success: false } },
-    codeql: { findings: 2 }, dependencies: { vulnerabilities: 1 },
-  });
-  assert.equal(badges.coverage.message, 'unavailable');
-  assert.equal(badges.tests.message, '9/10 passed');
-  assert.equal(badges.tests.color, 'red');
-  assert.equal(badges.codeql.color, 'red');
-  assert.equal(badges.dependencies.color, 'red');
 });
 
 test('coverage reporter uses the final aggregate summary and rejects partial runs', async () => {
