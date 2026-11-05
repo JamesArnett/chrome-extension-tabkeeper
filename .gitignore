@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+/dist/
+/reports/
+
+# Local working notes
+/HANDOFF.md
+/PLAN.md

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tabkeeper · Guide to tab groups and page status</title>
+  <style>
+    body { max-width: 760px; margin: 40px auto; padding: 0 20px; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #1f2328; }
+    .welcome-banner { display: block; width: 100%; height: auto; margin-bottom: 28px; border-radius: 10px; }
+    @media (prefers-color-scheme: dark) { body { background: #0d1117; color: #e6edf3; } code, pre { background: #161b22; } a { color: #4493f8; } }
+    h1 { font-size: 26px; } h2 { font-size: 20px; margin-top: 36px; } h3 { font-size: 16px; }
+    code, pre { background: #f6f8fa; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    code { padding: 1px 5px; } pre { padding: 10px 12px; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; } th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #d0d7de; vertical-align: top; }
+    .tip { border-left: 4px solid #0969da; padding: 6px 12px; background: rgba(9,105,218,.06); }
+  </style>
+</head>
+<body>
+  <img class="welcome-banner" src="../store/promo-marquee-1400x560.png" width="1400" height="560"
+    alt="Tabkeeper. Tabs that take care of themselves. Auto-close leftover tabs, group by rule with live status, and group AWS Console tabs by account and role.">
+  <h1>Welcome to Tabkeeper</h1>
+  <p>Tabkeeper keeps your tab strip tidy in three ways. Everything is configured on the settings page
+    (click the toolbar icon, then <strong>All rules</strong>, or right-click the icon and choose Options).</p>
+  <p>You can reopen this welcome page at any time using <strong>Help</strong> in the popup or settings header.</p>
+  <p><a href="#privacy">Permissions, site access and your data</a> explains what Tabkeeper reads and why Chrome asks for access.</p>
+  <ul>
+    <li><strong>Close rules</strong> close tabs you never need to keep: Zoom "launching" pages, sign-in
+      confirmation pages, redirect stubs. Match on title or URL, pick a delay. Tabs counting down sit in one
+      red <strong>Closing</strong> group at the end of the strip; the popup shows the countdown and a
+      <strong>Keep</strong> button, which exempts that tab from that rule for as long as it stays open.</li>
+    <li><strong>Age-based closing</strong> (optional) closes tabs that have been open, or unused, for longer
+      than a limit you set. It is quiet and logged, and skips pinned, active and audible tabs plus anything on
+      your never-close list.</li>
+    <li><strong>Grouping rules</strong> put tabs into Chrome tab groups by URL, one group per ticket or one shared
+      group per site, optionally with a live status read from the page. The <strong>AWS</strong> tab does the
+      same for AWS Console sessions by account and role.</li>
+  </ul>
+  <p>Keyboard shortcuts: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> pauses or resumes closing,
+    <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> applies grouping rules to the current tab. Change them at
+    <code>chrome://extensions/shortcuts</code>.</p>
+
+  <h1>Tab groups and page status</h1>
+  <p>Tabkeeper can put tabs into Chrome tab groups based on their URL, and append a short status read from
+    the page to the group title, so a Jira ticket becomes <code>ABC-123 - In Progress</code> and a merge request
+    <code>project!17 - Open · CI passed</code>. This guide covers the one part that needs a little care: telling
+    the extension where on the page the status lives.</p>
+
+  <h2>1. What a CSS selector is</h2>
+  <p>A CSS selector is the address of an element on a web page, the same thing stylesheets use to pick what to
+    style. <code>#status-val</code> means "the element whose id is status-val". <code>button.state</code> means
+    "a button with the class state". <code>[data-testid="header-state"]</code> means "the element whose
+    data-testid attribute is header-state". The extension finds that element, reads its text, and shows it.</p>
+
+  <h2>2. Finding one in DevTools</h2>
+  <ol>
+    <li>Open the page and find the status text you want (for example the word <strong>In Progress</strong>).</li>
+    <li>Right-click it and choose <strong>Inspect</strong>. DevTools opens with the element highlighted.</li>
+    <li>Look at the highlighted line. Note its tag, <code>id</code>, <code>data-testid</code> or <code>aria-label</code>.</li>
+    <li>Write a selector from the most stable attribute you see (next section), paste it into the status field,
+      and click <strong>Test on current tab</strong>.</li>
+  </ol>
+  <p class="tip">If the highlighted element is an icon or a wrapper with no text, click the parent or child in the
+    Elements panel until the line that contains the actual words is selected.</p>
+
+  <h2>3. Prefer stable attributes</h2>
+  <table>
+    <tr><th>Prefer</th><th>Why</th></tr>
+    <tr><td><code>#some-id</code></td><td>Ids rarely change between releases.</td></tr>
+    <tr><td><code>[data-testid="…"]</code></td><td>Added for the product's own tests; very stable.</td></tr>
+    <tr><td><code>[aria-label="…"]</code></td><td>Accessibility labels change less than visual classes.</td></tr>
+    <tr><td><code>.gl-badge-content</code> (short, meaningful class)</td><td>Fine when the class names a component.</td></tr>
+    <tr><th>Avoid</th><th>Why</th></tr>
+    <tr><td><code>.css-1x2y3z</code>, <code>._3kd9s</code></td><td>Generated class names change on every deploy.</td></tr>
+    <tr><td><code>div &gt; div &gt; span:nth-child(3)</code></td><td>Breaks as soon as the layout shifts.</td></tr>
+  </table>
+
+  <h2>4. Verifying in the console</h2>
+  <p>In DevTools, open the <strong>Console</strong> tab and run:</p>
+  <pre>document.querySelector('[data-testid="header-state"]').textContent</pre>
+  <p>If it prints the status text, the selector works. If it prints <code>null</code>, the selector matched
+    nothing; if it prints an empty string, you selected a wrapper and need the inner element.</p>
+
+  <h2>5. Fallbacks: several selectors in one field</h2>
+  <p>Separate alternatives with commas. They are tried <strong>in the order you write them</strong>, and the
+    first one that finds an element with text wins. Put the most specific first and the most generic last:</p>
+  <pre>[data-testid="header-state"], .gh-header-meta .State, .State</pre>
+  <p>This matters more than it looks: a plain stylesheet treats a comma list as one selector and returns matches
+    in page order, so a generic last-resort alternative would beat a specific one whenever both exist. The
+    extension evaluates each alternative on its own to avoid that.</p>
+
+  <h2>6. Multiple fields</h2>
+  <p>Add another status field when you want two things in the title, such as a merge request's state and its
+    pipeline result. Values are joined with <code> · </code>. Use the optional <strong>Label</strong> to prefix a
+    value (<code>CI passed</code>) and <strong>Keep only</strong> to trim a longer text with a regex:
+    <code>#\d+\s+(\S+)</code> turns <code>Pipeline #18395789 passed</code> into <code>passed</code>. If the regex
+    has a capture group the group is kept, otherwise the whole match. Fields that never appear are simply left
+    out of the title.</p>
+
+  <h2>7. Testing</h2>
+  <p><strong>Test on current tab</strong> is a dry run. It shows the group title the rule would produce, each
+    field's value and the element it was read from, and the final title exactly as it would appear. Nothing is
+    grouped and nothing is watched. Chrome asks for permission to read the site the first time; grouping works
+    without it, but the status does not.</p>
+
+  <h2>8. Keeping titles short</h2>
+  <p>Chrome shows a group title on one line and cuts the end when the tab strip is crowded, which is where the
+    status sits. The <strong>Max group title length</strong> setting shortens the base title with <code>…</code>
+    and always keeps the full status: <code>perimeterx-lambda-at-… - Blocked</code>. The base is never cut below
+    eight characters so ticket keys stay whole. Statuses are capped at 80 characters regardless.</p>
+
+  <h2>9. Things to know</h2>
+  <ul>
+    <li>Status is shown on the group, not on individual tabs. One status per group; the most recent read wins.</li>
+    <li>Groups are per window. The same ticket in two windows is two groups.</li>
+    <li>The first rule in the list that matches a tab's URL wins. Only if no rule matches the URL are rules
+      tried against the tab title (ServiceNow puts the incident number in the title).</li>
+    <li>Pages that change content without changing the URL update the status live but are not re-grouped.</li>
+    <li>Renaming a tracked group by hand is overwritten on the next status update. Groups you create yourself
+      are never renamed.</li>
+    <li>Tabs that are counting down to be closed sit in the red "Closing" group at the end of the strip and are not grouped by rules.</li>
+    <li>Only groups the extension created or adopted in this browser session are renamed; after a browser
+      restart they are recognised again by their title.</li>
+  </ul>
+  <section id="privacy" aria-labelledby="privacy-heading">
+    <h1 id="privacy-heading">Permissions, site access and your data</h1>
+    <p>Tabkeeper has no developer server, account system, analytics or advertising. It makes no network requests.
+      Its tab management happens in your browser. Chrome Sync, if enabled, can sync rules and settings through your Google account.</p>
+
+    <h2>What works without site access?</h2>
+    <p>Tabkeeper can read the titles and URLs of your open tabs to match rules, close tabs and create tab groups.
+      It also uses tab state such as age, recent use, whether a tab is pinned, and whether it is playing audio.
+      Those permissions do not give it access to the text inside a page. No optional site access is granted at install.</p>
+
+    <h2>Why does Chrome ask to read a site?</h2>
+    <p>A live status, such as <strong>In Progress</strong>, is inside the page rather than in the tab title.
+      Tabkeeper needs your approval to run its reader there. Saving a status rule requests its <strong>Site origin</strong>;
+      <strong>Test on current tab</strong> requests the current tab's site, which may be different. Access covers all paths
+      on that site, not only the current ticket, and lasts until you revoke it. Matching tabs can then update their status automatically.</p>
+    <p><strong>The browser permission is broader than the reader's intended use.</strong> Chrome grants page access
+      for the approved site, not a restriction to one selector. Tabkeeper uses your configured selectors to read
+      status text or selected form values; it does not edit the page. Choose only non-sensitive status fields:
+      a selector can read an input or textarea value, and that value may appear in a tab group title or Test results.</p>
+    <p>AWS grouping requests <code>https://*.console.aws.amazon.com/*</code> to cover the console's regional and
+      account subdomains, including multi-session hosts. It reads account, role and user labels from the console
+      navigation and the region from the URL. It does not call AWS APIs or use AWS access keys.</p>
+    <p>You can decline: closing and basic grouping still work. Page status and AWS account grouping need the
+      corresponding site access. Change access in <strong>Chrome → Extensions → Manage extensions → Tabkeeper → Details → Site access</strong>.
+      After revoking it, reload affected tabs to remove any reader already running in those pages. Existing group titles are not automatically erased.</p>
+
+    <h2>What is kept, and where?</h2>
+    <ul>
+      <li><strong>Rules and settings:</strong> Chrome sync storage. With Chrome Sync enabled, Google may store
+        and sync them to your other browsers. Rules can contain site URLs, patterns and selectors; avoid putting secrets in them.</li>
+      <li><strong>On this device:</strong> the last 100 tabs Tabkeeper closed (title, URL, rule and time), unfinished
+        rule forms, pause state and display preferences. You can clear the close history in the popup or settings.</li>
+      <li><strong>Browser-session state:</strong> countdowns, Keep choices, tab timing and group records, including
+        status/account labels used in group titles. This extension session storage is cleared when the browser closes.</li>
+      <li><strong>Visible output:</strong> group titles can contain ticket status or AWS labels. Tab titles and URLs,
+        including any sensitive URL parameters, can also appear in the close history. Review exports before sharing them.</li>
+    </ul>
+
+    <h2>What is not gathered or sent?</h2>
+    <p>Tabkeeper does not access Chrome's browsing-history database, cookie store or saved-password store. It does
+      not record keystrokes, take screenshots, or request camera, microphone or location access. It does not upload
+      tab titles, URLs, page content, statuses or AWS labels to the developer or any analytics service. Chrome Sync
+      handles rules/settings separately as described above. Custom selectors can still read sensitive page fields if you choose them.</p>
+    <p>Removing Tabkeeper removes its extension storage from that browser. It does not remove JSON files you exported
+      or erase information already displayed in existing tab group titles. Remove those separately if needed.</p>
+  </section>
+</body>
+</html>

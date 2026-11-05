@@ -1,0 +1,21 @@
+{
+  "name": "tabkeeper",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Tabkeeper: a Chrome extension that closes, groups and labels tabs by rule.",
+  "type": "module",
+  "scripts": {
+    "coverage": "node --test --experimental-test-coverage",
+    "coverage:ci": "node scripts/coverage-ci.mjs",
+    "e2e": "node scripts/e2e.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "package": "node scripts/package.mjs",
+    "promo": "node scripts/make-promo.mjs",
+    "security": "node scripts/security-local.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
