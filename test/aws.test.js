@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { loadStatusCore, el, fakeDoc } from './helpers/status-core.js';
 import {
   normalizeAwsSettings,
   defaultAwsSettings,
@@ -102,6 +103,37 @@ test('awsReadFields + parseAwsRead turn reader results into info', () => {
   );
   assert.deepEqual(info, AWS_SAMPLE_INFO);
   assert.deepEqual(parseAwsRead(null, 'https://console.aws.amazon.com/'), { account: '', accountId: '', role: '', user: '', region: '' });
+});
+
+test('AWS reader accepts root sessions after unrelated navigation text', () => {
+  const core = loadStatusCore();
+  const settings = normalizeAwsSettings({ selectors: { account: '#account', role: '#nav span' } });
+  const doc = fakeDoc({
+    '#account': [el('span', {}, { text: 'Acme Dev (123456789012)' })],
+    '#nav span': [el('span', {}, { text: 'Recently visited' }), el('span', {}, { text: 'root' })],
+  });
+  const read = core.readFields(doc, awsReadFields(settings));
+  const info = parseAwsRead(read, 'https://us-west-2.console.aws.amazon.com/');
+  assert.equal(info.role, 'root');
+  assert.equal(info.user, '');
+  assert.equal(composeAwsTitle(settings, info), 'Acme Dev · root');
+});
+
+test('AWS reader diagnostic text is never used as a role or user after a failed match', () => {
+  const core = loadStatusCore();
+  const settings = normalizeAwsSettings({ selectors: { account: '#account', role: '#nav span' } });
+  for (const text of ['Recently visited', 'Services', 'EC2 / Instances']) {
+    const read = core.readFields(fakeDoc({
+      '#account': [el('span', {}, { text: 'Acme Dev (123456789012)' })],
+      '#nav span': [el('span', {}, { text })],
+    }), awsReadFields(settings));
+    assert.equal(read.results[1].raw, text, 'diagnostic raw text is retained');
+    assert.equal(read.results[1].error, 'keep-no-match');
+    const info = parseAwsRead(read, 'https://us-west-2.console.aws.amazon.com/');
+    assert.equal(info.role, '', text);
+    assert.equal(info.user, '', text);
+    assert.equal(composeAwsTitle(settings, info), 'Acme Dev');
+  }
 });
 
 test('account id falls back to the hostname prefix when the label lacks it', () => {

@@ -6,7 +6,7 @@ import { generateId, MAX_NAME_LENGTH, MAX_PATTERN_LENGTH } from './rules.js';
 
 // chrome.tabGroups.Color: the nine colours Chrome allows. Custom colours are not possible.
 export const GROUP_COLORS = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
-export const IGNORED_URL_PREFIXES = ['chrome://', 'chrome-extension://', 'about:'];
+export const IGNORED_URL_PREFIXES = ['chrome://', 'chrome-extension://', 'moz-extension://', 'about:'];
 /** fixed: the chosen colour; random: a random colour per new group; title: the same colour for the same base title. */
 export const COLOR_MODES = ['fixed', 'random', 'title'];
 
@@ -150,7 +150,7 @@ export function validateGroupRule(rule, { forTest = false, probeSelector = null,
   }
 
   if (rule.name && rule.name.length > MAX_NAME_LENGTH) errors.name = `Name must be ${MAX_NAME_LENGTH} characters or fewer`;
-  if (!GROUP_COLORS.includes(rule.color)) errors.color = 'Pick one of the nine Chrome colours';
+  if (!GROUP_COLORS.includes(rule.color)) errors.color = 'Pick one of the nine tab group colours';
 
   if (rule.statusEnabled) {
     rule.statusFields.forEach((field, i) => {

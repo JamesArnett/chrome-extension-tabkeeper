@@ -3,9 +3,12 @@
 // hashes them when it opens. A mismatch means files changed since the worker
 // started and the extension should be reloaded.
 
+import { api as chrome } from './browser-api.js';
+
 export const SOURCE_FILES = [
   'manifest.json',
   'src/background.js',
+  'src/browser-api.js',
   'src/scheduler.js',
   'src/grouper.js',
   'src/aws.js',

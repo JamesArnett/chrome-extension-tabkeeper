@@ -6,12 +6,16 @@ on:
       release-tag:
         type: string
         default: ''
+      target:
+        type: string
+        default: 'all'
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    if: ${{ inputs.target != 'firefox' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -27,6 +31,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release-tag }}
         run: node scripts/check-release.mjs
+      - run: npm ci
+        if: ${{ hashFiles('package-lock.json') != '' }}
       - run: npm run coverage:ci
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: ${{ always() }}
@@ -58,4 +64,49 @@ jobs:
           name: tabkeeper-package
           path: dist/tabkeeper-*.zip
           if-no-files-found: error
+          retention-days: 14
+
+  firefox:
+    if: ${{ inputs.target != 'chrome' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.release-tag && format('refs/tags/{0}', inputs.release-tag) || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm ci
+      - name: Validate Firefox package with Mozilla web-ext
+        run: npm run lint:firefox
+      - name: Install Firefox and checksum-pinned geckodriver
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            'https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US' \
+            --output "$RUNNER_TEMP/firefox.tar.xz"
+          tar -xJf "$RUNNER_TEMP/firefox.tar.xz" -C "$RUNNER_TEMP"
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/mozilla/geckodriver/releases/download/v0.37.1/geckodriver-v0.37.1-linux64.tar.gz \
+            --output "$RUNNER_TEMP/geckodriver.tar.gz"
+          echo "e815130ea95983e162ae91843b48d3a3ce991735635fce83a647afde21e09f7e  $RUNNER_TEMP/geckodriver.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/geckodriver.tar.gz" -C "$RUNNER_TEMP"
+          echo "FIREFOX=$RUNNER_TEMP/firefox/firefox" >> "$GITHUB_ENV"
+          echo "GECKODRIVER=$RUNNER_TEMP/geckodriver" >> "$GITHUB_ENV"
+      - name: Firefox integration tests in an isolated profile
+        run: npm run e2e:firefox
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tabkeeper-firefox-package
+          path: dist/tabkeeper-firefox-*.zip
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: ${{ always() }}
+        with:
+          name: firefox-validation
+          path: reports/firefox-lint.json
+          if-no-files-found: warn
           retention-days: 14

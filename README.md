@@ -3,7 +3,7 @@
 [![CI](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/ci.yml)
 [![Security](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/JamesArnett/chrome-extension-tabkeeper/actions/workflows/security.yml)
 
-A Chrome extension that closes tabs you never need to keep open: Zoom "redirecting to the app"
+A browser extension for Chrome and desktop Firefox that closes tabs you never need to keep open: Zoom "redirecting to the app"
 pages, AWS post-login confirmation windows, and anything else you can describe with a title or URL
 match. Each rule has its own delay, so a tab is only closed after it has sat matching for as long as
 you choose.
@@ -15,7 +15,8 @@ you choose.
 3. Click **Load unpacked** and pick this folder.
 4. Click the toolbar icon to open the popup and add your first rule.
 
-Requires Chrome 121 or newer.
+Requires Chrome 121+ or desktop Firefox 140+. The root manifest is the Chrome development target; Firefox uses
+the generated package described below. Firefox for Android is not supported.
 
 The welcome page opens on first install. Click **Help** in the toolbar popup or settings header to open it again.
 
@@ -101,6 +102,7 @@ Pending countdowns survive the service worker being suspended, so long delays ar
 ## Development
 
 ```
+npm ci                                # locked Firefox development tools (no runtime dependencies)
 npm test                              # all tests (node --test)
 npm run coverage                      # same, with line/branch coverage (built-in)
 npm run coverage:ci                   # Node 24+: coverage plus JSON reports
@@ -117,17 +119,22 @@ title shortening, and the form's Test button. Branded Chrome 137+ ignores `--loa
 point `CHROME` at Chrome for Testing: `npx @puppeteer/browsers install chrome@stable` prints the
 binary path. The script also needs `openssl` on PATH to mint a throwaway certificate for its fixture site.
 
-No build step. Edit the files and click the reload icon on `chrome://extensions`.
+No bundler or compiled runtime. The packaging command generates the browser-specific manifest.
+Edit shared files and reload the extension in your browser.
 
 ```
-npm run package                       # dist/tabkeeper-<version>.zip for the Chrome Web Store
+npm run package                       # dist/tabkeeper-<version>.zip for Chrome
+npm run package:firefox               # dist/tabkeeper-firefox-<version>.zip for AMO
+npm run lint:firefox                  # validate Firefox package with Mozilla web-ext
+FIREFOX=/path/to/firefox GECKODRIVER=/path/to/geckodriver npm run e2e:firefox
 ```
 
 See [AGENTS.md](AGENTS.md) for contributor guidance and the code layout, and
 [the grouping spec](docs/spec-tab-groups-and-status.md) for expected behavior. The store listing draft and
 privacy policy are in `docs/`.
 
-GitHub Actions runs unit tests, coverage, packaging and Chrome for Testing integration tests. Pushing a version
+GitHub Actions runs unit tests, coverage, both browser packages, Chrome for Testing integration tests and
+Firefox validation/browser tests. Pushing a version
 tag such as `v1.0.0` creates a GitHub release with the tested ZIP. The manual **Chrome Web Store** workflow can
 upload that version and optionally submit it for review. Store publishing requires an existing listing and
 credentials configured in GitHub's `chrome-web-store` environment. See [the release guide](docs/RELEASING.md)
@@ -148,3 +155,8 @@ The popup explains site access beside the status/AWS controls. **Privacy** in it
 permissions and data guide, including Chrome Sync, local history, custom selector boundaries and revoking access.
 
 Licensed under the [MIT License](LICENSE). Copyright © 2026 James Arnett.
+
+Firefox uses the same source code and settings format, with a generated Manifest V3 event-page manifest,
+Promise API selection and browser-specific permission/help links. Browser sync does not transfer settings
+between Chrome and Firefox; use JSON export/import. For local setup, AMO account creation, known differences
+and manual publishing, see [Firefox support and releases](docs/FIREFOX.md).

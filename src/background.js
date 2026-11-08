@@ -1,7 +1,8 @@
-// MV3 service worker. Keeps no logic of its own: wires Chrome events to the
+// MV3 background (Chrome worker / Firefox event page). Wires browser events to the
 // close scheduler and the tab grouper. Listeners are registered synchronously
 // at top level (required by MV3) and wait for start() before acting.
 
+import { api as chrome, isExtensionSender } from './browser-api.js';
 import { createStorage } from './storage.js';
 import { createScheduler } from './scheduler.js';
 import { createGrouper } from './grouper.js';
@@ -81,7 +82,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) =>
+chrome.tabs.onReplaced?.addListener((addedTabId, removedTabId) =>
   whenReady(() => scheduler.onTabReplaced(addedTabId, removedTabId)),
 );
 
@@ -158,14 +159,13 @@ const handlers = {
   sweep: () => ageCloser.sweep(),
 };
 
-const EXTENSION_ORIGIN = new URL(chrome.runtime.getURL('')).origin;
+const EXTENSION_BASE = chrome.runtime.getURL('');
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handler = message && handlers[message.type];
   if (!handler) return false;
   // Injected page readers (sender.origin is the web page's) may only send status reports.
-  const fromWebPage = Boolean(sender.tab) && sender.origin !== EXTENSION_ORIGIN;
-  if (fromWebPage && message.type !== 'status-report') return false;
+  if (!isExtensionSender(sender, chrome.runtime.id, EXTENSION_BASE) && message.type !== 'status-report') return false;
   ready
     .then(() => handler(message, sender))
     .then(

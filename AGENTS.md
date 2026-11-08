@@ -4,8 +4,8 @@ Guidance for coding agents and contributors working in this repository.
 
 ## What this is
 
-**Tabkeeper** is a Manifest V3 Chrome extension written in vanilla JavaScript ES modules. There is no bundler and
-no runtime dependency. It has three features:
+**Tabkeeper** is a Manifest V3 extension for Chrome and desktop Firefox, written in vanilla JavaScript ES modules.
+There is no bundler or runtime dependency. Mozilla web-ext is a locked development dependency. It has three features:
 
 1. **Close rules.** Tabs whose title and/or URL match a rule are closed after a per-rule delay. While counting down
    they sit in one red "Closing" tab group at the end of the tab strip. Optional age-based closing closes tabs
@@ -30,13 +30,22 @@ npm test                              # node --test, runs every test/*.test.js
 node --test test/scheduler.test.js    # one file
 npm run coverage                      # node --test --experimental-test-coverage
 npm run package                       # dist/tabkeeper-<version>.zip for the Chrome Web Store
+npm run package:firefox               # generated Firefox manifest + shared runtime for AMO
+npm run lint:firefox                  # Mozilla validation (npm ci first)
+FIREFOX=/path/to/firefox GECKODRIVER=/path/to/geckodriver npm run e2e:firefox
 npm run icons                         # regenerate icons/*.png from scripts/make-icons.mjs
 CHROME=/path/to/chrome npm run e2e    # scripts/e2e.mjs: headless browser test over the DevTools protocol
 CHROME=/path/to/chrome npm run promo  # scripts/make-promo.mjs: store/ promo tiles and screenshots
 ```
 
-Node 20 or newer. There is no build or lint step. Load the repo root unpacked at `chrome://extensions` and press
+Node 20 or newer. There is no runtime compilation step. Load the repo root unpacked at `chrome://extensions` and press
 its reload button after edits.
+
+For Firefox, use the generated package, never the Chrome root manifest. The Firefox minimum is desktop 140;
+Android is unsupported. See `docs/FIREFOX.md` for browser differences, testing and AMO setup. Run both browser
+integration suites after shared runtime/UI changes. `src/browser-api.js` selects native Promise APIs and
+normalizes Firefox host patterns; its message-sender checks protect settings-only commands. Keep host grants
+optional. The Firefox test fixture module under `scripts/fixtures/` must never enter a store package.
 
 The e2e and promo scripts need **Chrome for Testing**: branded Chrome 137+ ignores `--load-extension`.
 `npx @puppeteer/browsers install chrome@stable` downloads it and prints the binary path. `openssl` must be on PATH

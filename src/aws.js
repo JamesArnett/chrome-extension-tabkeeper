@@ -29,11 +29,11 @@ export const AWS_SEPARATORS = [
 export const AWS_DEFAULT_SELECTORS = {
   account: '[data-testid="account-label"]',
   // Generated class names (globalNav-2246) change between deploys, so the role
-  // is found by shape: a span near the account label whose whole text is role/user.
+  // is found by shape: a span near the account label whose whole text is role/user or root.
   role: '#awsc-nav-header [data-testid="account-label"] ~ span, [data-testid="account-label"] ~ span, #awsc-nav-header span',
 };
-/** Whole text must look like role/user; group 1 is the role. */
-export const AWS_ROLE_PATTERN = '^([A-Za-z0-9+=,.@_-]+)/[A-Za-z0-9+=,.@_-]+$';
+/** Whole text must be role/user or root. parseRole splits a successful identity read. */
+export const AWS_ROLE_PATTERN = '^(?:root|[A-Za-z0-9+=,.@_-]+/[A-Za-z0-9+=,.@_-]+)$';
 
 export function defaultAwsSettings() {
   return {
@@ -149,7 +149,10 @@ export function accountIdFromUrl(url) {
 export function parseAwsRead(read, url) {
   const results = read?.results ?? [];
   const parsed = parseAccountLabel(results[0]?.raw ?? results[0]?.value ?? '');
-  const { role, user } = parseRole(results[1]?.raw ?? '');
+  // A failed pickMatching read retains raw text only for diagnostics. Never use
+  // that fallback (e.g. a page heading) as the signed-in identity.
+  const roleResult = results[1];
+  const { role, user } = parseRole(roleResult?.value && !roleResult.error ? roleResult.raw ?? roleResult.value : '');
   return {
     account: parsed.account,
     accountId: parsed.accountId || accountIdFromUrl(url),

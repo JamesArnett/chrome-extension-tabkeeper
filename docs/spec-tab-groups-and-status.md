@@ -474,3 +474,29 @@ existing Chrome mock. At minimum:
 The injected reader and the popup cannot be unit-tested in Node; extend `scripts/e2e.mjs` to load a local
 fixture page with a late-rendering status element and assert the group title, then change the element and
 assert the rename.
+
+
+## Cross-browser delivery (2026-11-07)
+
+Chrome and desktop Firefox use the same scheduler, grouper, reader and UI. The root manifest remains the
+Chrome target; packaging generates Firefox's module event-page manifest with a stable AMO ID and desktop
+minimum version 140. Browser API namespace selection and Firefox host-pattern normalization live in
+`src/browser-api.js`; no runtime polyfill or source fork is required. Optional site access remains optional
+in both shipped targets. Firefox grants cover the host's ports, while rules still match actual URLs.
+
+Extension UI messages are authorized from browser-supplied sender ID and the complete extension URL prefix,
+so both chrome-extension and moz-extension origins work without trusting web-page readers. Guard Chrome-only
+tab replacement events. Browser-specific settings links, permission instructions and sync-provider wording
+must reflect the running browser. Browser-managed sync does not transfer rules between Chrome and Firefox.
+
+Firefox's native collapse behavior may leave the active tab visible while the other group members collapse;
+do not move or close the active tab merely to emulate Chrome's native presentation. Other grouping, status,
+Keep and age-close behavior remains as specified above. Android is not a supported target.
+
+## AWS identity reads (2026-11-07)
+
+AWS role selectors accept a complete `role/user` label or the complete label `root`. A successful read is
+split into role and user; `root` has no separate user. If no selected element matches, retain its raw text
+for Test diagnostics only. Failed or empty role reads must leave role/user absent from the composed group
+title, never substitute unrelated navigation text such as “Recently visited”. Account and region fields
+may still supply a partial title. Cover root sessions and failed matches in both browser integration suites.

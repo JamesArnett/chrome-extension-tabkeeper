@@ -127,7 +127,7 @@
       Age limits are checked once a minute and closed quietly: no countdown group, no "Closing soon" entry, but
       every close is listed under Recent closes. Never closed this way: pinned tabs, the active tab in each
       window, tabs playing audio, and tabs that asked "Leave site?" when closing was attempted (they are left
-      alone from then on). "Not used" means not brought to the front, as reported by Chrome. "Open" counts from
+      alone from then on). "Not used" means not brought to the front, as reported by the browser. "Open" counts from
       when Tabkeeper first saw the tab, so after a browser restart the clock starts again.
     </p>
   </details>
@@ -244,10 +244,11 @@
             <strong>Why allow site access?</strong>
             <p id="group-permission-save"></p>
             <p id="group-permission-test"></p>
-            <p>Chrome grants access to pages on the approved site, not just one status field. Tabkeeper uses your
+            <p>Your browser grants access to pages on the approved site, not just one status field. Tabkeeper uses your
               selectors on matching tabs to read status text or form values for group titles. Nothing is sent to the developer.</p>
             <p>You can decline: closing and basic grouping still work, without page status.
               <a href="../help/guide.html#privacy" target="_blank" rel="noopener">What is read, stored and shared</a></p>
+            <p data-browser-copy="ports"></p>
           </div>
         </div>
       </fieldset>
@@ -276,7 +277,7 @@
     <div class="permission-note" id="aws-permission-note">
       <strong>Why allow AWS site access?</strong>
       <p>Enabling, testing or granting access requests <code>https://*.console.aws.amazon.com/*</code>, covering
-        the console and its regional and account subdomains. Chrome grants page access across these sites.</p>
+        the console and its regional and account subdomains. Your browser grants page access across these sites.</p>
       <p>Tabkeeper reads account, role and user labels from the console navigation, plus the region from the URL,
         to name tab groups. It does not call AWS APIs or use AWS access keys. Nothing is sent to the developer.</p>
       <p>You can decline or revoke access; AWS account grouping needs it, but closing and basic grouping do not.
@@ -285,10 +286,10 @@
     <label class="inline"><input type="checkbox" id="aws-enabled" aria-describedby="aws-permission-note"> <strong>Group AWS Console tabs</strong></label>
     <p id="aws-access" class="notice warn" hidden>
       <span>The extension cannot read the AWS Console yet. Grant access, or if you already did, check that
-        Chrome's "Site access" for this extension is not set to "On click".</span>
+        your browser allows this extension to read AWS Console pages.</span>
       <span class="actions tight">
         <button type="button" id="aws-grant">Grant access</button>
-        <button type="button" id="aws-settings">Extension settings</button>
+        <button type="button" id="aws-settings" data-browser-copy="settingsButton">Extension settings</button>
       </span>
     </p>
   </section>
@@ -314,7 +315,7 @@
       <label class="field">
         <span>Role selector</span>
         <input id="aws-sel-role" autocomplete="off" spellcheck="false">
-        <small>Alternatives tried in order; the first element whose whole text looks like <code>role/user</code> wins. Everything before the slash is the role.</small>
+        <small>Alternatives tried in order; the first element whose whole text looks like <code>role/user</code> or <code>root</code> wins. Everything before the slash is the role. Unmatched text is shown only in diagnostics.</small>
       </label>
       <label class="field">
         <span>Console URL regex</span>
@@ -337,8 +338,8 @@
   <details id="privacy-details">
     <summary>Permissions &amp; privacy</summary>
     <p>Tabkeeper reads open-tab titles and URLs to match your rules, even without site access. Reading status
-      fields or AWS labels inside a page needs your separate approval. You can remove that approval in Chrome's extension settings.</p>
-    <p>Rules and settings use Chrome Sync if enabled. The last 100 closed-tab titles and URLs, plus unfinished
+      fields or AWS labels inside a page needs your separate approval. You can remove that approval in your browser's extension settings.</p>
+    <p>Rules and settings use <span data-browser-copy="sync">Chrome Sync</span> if enabled. The last 100 closed-tab titles and URLs, plus unfinished
       forms, stay on this device. Status and account labels are used in group titles and temporary session state.</p>
     <p>No analytics, ads or developer data collection. Tabkeeper makes no network requests. Avoid putting secrets
       in rules or choosing status selectors that read sensitive fields.

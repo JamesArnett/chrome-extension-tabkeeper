@@ -2,6 +2,7 @@
 // self-contained reader into all frames of a tab and picks the best frame.
 
 export const READER_FILES = ['src/status-core.js', 'src/reader.js'];
+import { hostPermission } from './browser-api.js';
 
 /** Prefer the frame with most values; on a total miss, the one that matched most elements. */
 export function pickBestFrame(frames) {
@@ -25,7 +26,8 @@ export function createStatusReader({ scripting, permissions, logger = console })
     async hasAccess(origin) {
       if (!origin) return false;
       try {
-        return await permissions.contains({ origins: [`${origin}/*`] });
+        const pattern = hostPermission(origin);
+        return Boolean(pattern) && await permissions.contains({ origins: [pattern] });
       } catch {
         return false;
       }

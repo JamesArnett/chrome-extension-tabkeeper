@@ -1,7 +1,8 @@
 # Releasing Tabkeeper
 
-The source is prepared as version **1.0.0**. GitHub Actions can publish ZIP releases and submit updates to the
-Chrome Web Store. Google still controls review and approval. Nothing has been uploaded by preparing these files.
+The next source version is **1.1.0**, adding desktop Firefox support. Chrome **1.0.0** was submitted separately;
+changing a development branch does not change that submission. GitHub Actions can publish both browser ZIPs
+and submit store updates. Each store controls its review and approval. Preparing these files does not upload a new store version.
 
 ## Workflows
 
@@ -9,7 +10,7 @@ Chrome Web Store. Google still controls review and approval. Nothing has been up
 | --- | --- | --- |
 | CI | Branch pushes, pull requests, manual runs and weekly | Node 20 compatibility; Node 24 coverage, package validation and Chrome tests. Saves reports and ZIP; writes measured test/coverage summaries. |
 | Security | Branch pushes, pull requests, manual runs and weekly | CodeQL and OSV scans, native status badge, job summaries with finding counts and downloadable reports. Also reused to gate releases. |
-| Release | Push a `v<version>` tag | Repeats validation, browser tests and security scans, then creates a GitHub release containing the tested ZIP. |
+| Release | Push a `v<version>` tag | Repeats validation, browser tests and security scans, then creates a GitHub release containing both tested browser ZIPs. |
 | Chrome Web Store | Actions → Chrome Web Store → Run workflow | Checks out, tests and scans the supplied tag, uploads its tested ZIP as a draft, and optionally submits it for review. |
 
 Versions in `manifest.json`, `package.json`, the ZIP, and the release tag must agree. A mismatch fails the run.
@@ -22,7 +23,7 @@ Any dependency vulnerability or high/critical CodeQL finding blocks publishing. 
 ## One-time account setup
 
 1. Register at the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
-2. Create a new item by manually uploading `dist/tabkeeper-1.0.0.zip`. The API updates existing items;
+2. Create a new item by manually uploading `dist/tabkeeper-1.1.0.zip`. The API updates existing items;
    it cannot create the initial listing. Record its 32-character extension ID and your publisher ID.
 3. Complete the listing using [STORE_LISTING.md](STORE_LISTING.md), images from `store/`, and the privacy declarations
    in the current dashboard. Verify the [privacy policy](PRIVACY.md) URL is accessible publicly. If the repository
@@ -81,12 +82,12 @@ npm test
 npm run coverage
 CHROME="/path/to/Chrome for Testing" npm run e2e
 npm run package
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 Wait for **Release** to pass. Download the ZIP from the GitHub release or run **Chrome Web Store**, supply
-`v1.0.0`, and choose upload-only or submission. A green submission means the API accepted the request;
+`v1.1.0`, and choose upload-only or submission. A green submission means the API accepted the request;
 check the developer dashboard for review status. If a submission has warnings or fails, fix them in the
 dashboard before retrying. Do not overwrite or move released tags.
 
@@ -96,3 +97,12 @@ must increase. To revert behavior, ship the previous code with a new, higher ver
 API references: [upload](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/media/upload),
 [upload status](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/fetchStatus),
 [submit for review](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/publish).
+
+## Firefox / AMO
+
+The reusable verification workflow also validates and tests desktop Firefox. Releases attach a second package,
+`tabkeeper-firefox-<version>.zip`, generated from the same source. The manual **Firefox Add-ons** workflow
+defaults to validation only; selecting Submit sends the checked package to AMO for listed distribution.
+Create the initial AMO listing manually and configure `AMO_JWT_ISSUER` / `AMO_JWT_SECRET` in the
+`firefox-add-ons` GitHub environment. See [Firefox setup and release instructions](FIREFOX.md). Do not change
+the repository name or existing Chrome support/privacy URLs as part of browser packaging.

@@ -12,7 +12,7 @@ repositories; its query libraries are open source. This repository is intended t
 before making it private. These checks complement code review and browser testing; their counts describe what
 these scanners reported, rather than a guarantee that the extension has no vulnerabilities.
 
-Tabkeeper currently declares no npm dependencies. OSV's no-packages result is accepted only when `package.json`
+Tabkeeper has no runtime npm dependencies. Its locked Firefox development tools are included in OSV scans. OSV's no-packages result is accepted only when `package.json`
 declares none. Errors fail the scan. If dependencies are added, commit the package manager's lockfile; the gate
 rejects declared dependencies without one. The count is affected package/advisory pairs, with CVE/GHSA aliases
 grouped together by OSV. It is not a count of source-code findings or secrets.
