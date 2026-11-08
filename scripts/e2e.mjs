@@ -650,7 +650,8 @@ try {
     await waitFor(async () => {
       const gid = await tabGroup(id);
       return gid !== -1 && (await groupTitle(gid)) === expected;
-    }, { label: `AWS identity ${role}` });
+    // A missing role resolves only after the reader's 10-second render window.
+    }, { timeout: 15000, label: `AWS identity ${role}` });
     assert(true, role === 'root' ? 'AWS root session has the correct group title' : 'AWS unmatched navigation text is excluded from group titles');
   }
 
