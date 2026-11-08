@@ -6,6 +6,7 @@
 (function () {
   if (globalThis.TabkeeperReader) return;
   const core = globalThis.TabkeeperStatusCore;
+  const extension = globalThis.browser || globalThis.chrome;
   const OBSERVE = { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['value'] };
   const watcher = { observer: null, fields: null, lastReported: '', debounce: null };
 
@@ -31,7 +32,7 @@
     if (!joined || joined === watcher.lastReported) return;
     watcher.lastReported = joined;
     try {
-      const p = chrome.runtime.sendMessage({ type: 'status-report', results: serialize(snap).results });
+      const p = extension.runtime.sendMessage({ type: 'status-report', results: serialize(snap).results });
       if (p && typeof p.catch === 'function') p.catch(function () {});
     } catch (err) {
       // Extension reloaded or unloaded; nothing to report to.

@@ -1,0 +1,75 @@
+name: Firefox Add-ons
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag (for example v1.1.0)'
+        required: true
+        type: string
+      submit:
+        description: 'Submit the tested version to the public AMO listing (may publish after Mozilla approval)'
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firefox-add-ons
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a version tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: '[[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
+  verify:
+    needs: validate
+    uses: ./.github/workflows/verify.yml
+    with:
+      release-tag: ${{ inputs.tag }}
+      target: firefox
+  security:
+    needs: validate
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/security.yml
+    with:
+      release-tag: ${{ inputs.tag }}
+  submit:
+    if: ${{ inputs.submit }}
+    needs: [verify, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: firefox-add-ons
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ format('refs/tags/{0}', inputs.tag) }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm ci
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tabkeeper-firefox-package
+          path: dist
+      - name: Extract the tested Firefox package
+        run: |
+          mkdir -p "$RUNNER_TEMP/firefox-release"
+          unzip -q dist/tabkeeper-firefox-*.zip -d "$RUNNER_TEMP/firefox-release"
+      - name: Submit to Mozilla using the official web-ext client
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          npx --no-install web-ext sign --no-config-discovery \
+            --source-dir "$RUNNER_TEMP/firefox-release" \
+            --channel listed --approval-timeout 0 --artifacts-dir "$RUNNER_TEMP/firefox-signing"

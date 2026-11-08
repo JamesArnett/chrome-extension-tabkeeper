@@ -9,14 +9,18 @@
 // pages and the ES module imports exists, and that src/build.js lists real files.
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateRelease } from './check-release.mjs';
+import { targetManifest } from './browser-targets.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const manifest = JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8'));
+const args = process.argv.slice(2);
+if (args.length > 1 || (args[0] && !['chrome', 'firefox'].includes(args[0]))) throw new Error('Usage: package.mjs [chrome|firefox]');
+const target = args[0] ?? 'chrome';
+const manifest = targetManifest(JSON.parse(readFileSync(join(ROOT, 'manifest.json'), 'utf8')), target);
 validateRelease(manifest, JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')), process.env.RELEASE_TAG ?? '');
 const DIRS = ['src', 'popup', 'options', 'help'];
 const RUNTIME_ASSETS = ['store/promo-marquee-1400x560.png'];
@@ -30,7 +34,7 @@ const need = (rel, from) => {
 // Manifest references.
 const icons = new Set([...Object.values(manifest.icons ?? {}), ...Object.values(manifest.action?.default_icon ?? {})]);
 for (const icon of icons) need(icon, 'manifest.json');
-need(manifest.background?.service_worker, 'manifest.json background');
+for (const script of manifest.background.scripts ?? [manifest.background.service_worker]) need(script, 'manifest.json background');
 need(manifest.action?.default_popup, 'manifest.json action');
 if (manifest.options_ui?.page) need(manifest.options_ui.page, 'manifest.json options_ui');
 for (const asset of RUNTIME_ASSETS) need(asset, 'runtime assets');
@@ -77,7 +81,7 @@ if (problems.length) {
 
 const stage = mkdtempSync(join(tmpdir(), 'tabkeeper-pkg-'));
 try {
-  cpSync(join(ROOT, 'manifest.json'), join(stage, 'manifest.json'));
+  writeFileSync(join(stage, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   cpSync(join(ROOT, 'LICENSE'), join(stage, 'LICENSE'));
   for (const dir of DIRS) cpSync(join(ROOT, dir), join(stage, dir), { recursive: true, filter: (p) => !p.endsWith('.DS_Store') });
   mkdirSync(join(stage, 'icons'));
@@ -88,7 +92,7 @@ try {
   }
 
   mkdirSync(join(ROOT, 'dist'), { recursive: true });
-  const out = join(ROOT, 'dist', `tabkeeper-${manifest.version}.zip`);
+  const out = join(ROOT, 'dist', `tabkeeper-${target === 'firefox' ? 'firefox-' : ''}${manifest.version}.zip`);
   rmSync(out, { force: true });
   execFileSync('zip', ['-r', '-X', '-q', out, '.'], { cwd: stage });
   const listing = execFileSync('unzip', ['-Z1', out], { encoding: 'utf8' }).trim().split('\n');

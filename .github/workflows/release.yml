@@ -34,6 +34,10 @@ jobs:
         with:
           name: tabkeeper-package
           path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tabkeeper-firefox-package
+          path: dist
       - name: Publish the tested ZIP as a GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,6 +2,8 @@
 // plus shared pause, closing-soon, and import/export. All DOM is built with
 // createElement/textContent; no innerHTML.
 
+import { api as chrome, IS_FIREFOX, extensionSettingsUrl, hostPermission } from '../src/browser-api.js';
+import { applyBrowserCopy } from '../popup/browser-copy.js';
 import { createStorage } from '../src/storage.js';
 import {
   MODES,
@@ -61,6 +63,7 @@ import {
 } from '../popup/shared.js';
 
 const core = globalThis.TabkeeperStatusCore; // loaded by <script src="../src/status-core.js">
+applyBrowserCopy();
 const storage = createStorage(chrome.storage);
 const draft = createDraftStore(storage);
 const groupDraft = createDraftStore({
@@ -144,7 +147,7 @@ function showView(view) {
 }
 
 async function checkStaleWorker() {
-  if (chrome.runtime.getManifest().update_url) return; // store install: never a dev banner
+  if (IS_FIREFOX || chrome.runtime.getManifest().update_url) return; // never show the developer banner for AMO/store installs
   const mismatch = async () => {
     const res = await send({ type: 'version' });
     return res?.ok && res.build && res.now && res.build !== res.now ? res : null;
@@ -820,10 +823,10 @@ function renderGroupPermissionNote() {
   const origin = originOf(gf().siteOrigin.value.trim());
   const testOrigin = originOf(activeTab?.url ?? '');
   els.groupPermissionSave.textContent = origin
-    ? `Saving this rule requests access to ${origin}/* for live status.`
+    ? `Saving this rule requests access to ${hostPermission(origin)} for live status.`
     : 'Saving a status rule requests access to the site origin you enter above.';
   els.groupPermissionTest.textContent = testOrigin
-    ? `Test on current tab requests access to ${testOrigin}/*, which may differ from the saved rule's site.`
+    ? `Test on current tab requests access to ${hostPermission(testOrigin)}, which may differ from the saved rule's site.`
     : 'Test on current tab requests access to the current web page’s site; browser pages cannot be read.';
 }
 
@@ -916,7 +919,7 @@ async function onGroupSubmit(event) {
     return;
   }
   let permission = null;
-  if (rule.statusEnabled && rule.siteOrigin) permission = chrome.permissions.request({ origins: [`${rule.siteOrigin}/*`] }).catch(() => false);
+  if (rule.statusEnabled && rule.siteOrigin) permission = chrome.permissions.request({ origins: [hostPermission(rule.siteOrigin)] }).catch(() => false);
   await storage.saveGroupRule(rule);
   const granted = permission ? await permission : null;
   await closeGroupForm();
@@ -941,7 +944,7 @@ async function onTestGroupRule() {
   const tab = activeTab;
   const origin = originOf(tab?.url ?? '');
   let permission = null;
-  if (rule.statusEnabled && origin) permission = chrome.permissions.request({ origins: [`${origin}/*`] }).catch(() => false);
+  if (rule.statusEnabled && origin) permission = chrome.permissions.request({ origins: [hostPermission(origin)] }).catch(() => false);
   renderTestResult({ pending: true });
   if (!tab) {
     renderTestResult({ error: 'browser-page', url: '', title: '' });
@@ -1124,7 +1127,7 @@ async function onAwsGrant() {
   await renderAws();
   const visible = await awsHasAccess();
   if (granted && visible) setNotice(els.awsStatus, 'Access granted.', 'ok');
-  else if (granted) setNotice(els.awsStatus, 'Chrome reports the permission as approved but not active. Open the extension settings, allow the relevant console.aws.amazon.com sites under "Site access", then reload the console tab.', 'warn');
+  else if (granted) setNotice(els.awsStatus, 'The browser reports permission as approved but not active. Open the extension settings, allow the relevant console.aws.amazon.com sites, then reload the console tab.', 'warn');
   else setNotice(els.awsStatus, 'Access was not granted.', 'warn');
 }
 
@@ -1294,7 +1297,11 @@ async function init() {
   els.awsSeparator.addEventListener('change', onAwsChange);
   for (const input of [els.awsSelAccount, els.awsSelRole, els.awsUrlPattern]) input.addEventListener('change', onAwsChange);
   els.awsGrant.addEventListener('click', onAwsGrant);
-  els.awsSettings.addEventListener('click', () => chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}` }).catch(() => {}));
+  els.awsSettings.addEventListener('click', () => {
+    const url = extensionSettingsUrl(chrome.runtime.id);
+    if (url) chrome.tabs.create({ url }).catch(() => {});
+    else setNotice(els.awsStatus, 'In Firefox, open Add-ons and themes → Extensions → Tabkeeper → Permissions, adjust the site access, then reload the console tab.', 'warn');
+  });
   els.awsReset.addEventListener('click', onAwsReset);
   els.awsTest.addEventListener('click', onAwsTest);
   els.awsApply.addEventListener('click', onAwsApply);

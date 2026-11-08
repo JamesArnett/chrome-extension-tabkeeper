@@ -1,4 +1,5 @@
 // Helpers shared by the quick popup and the settings page.
+import { api as chrome, isExtensionUrl } from '../src/browser-api.js';
 
 export const $ = (id) => document.getElementById(id);
 
@@ -38,7 +39,7 @@ export function setNotice(node, message, kind = '') {
   node.className = `notice${kind ? ` ${kind}` : ''}`;
 }
 
-const EXTENSION_ORIGIN = new URL(chrome.runtime.getURL('')).origin;
+const EXTENSION_BASE = chrome.runtime.getURL('');
 
 /**
  * The tab the user is "on". In the popup that is the active tab. On the settings page
@@ -48,9 +49,9 @@ export async function pickActiveTab() {
   try {
     const tabs = await chrome.tabs.query({ currentWindow: true });
     const active = tabs.find((t) => t.active);
-    if (active && !(active.url ?? '').startsWith(EXTENSION_ORIGIN)) return active;
+    if (active && !isExtensionUrl(active.url, EXTENSION_BASE)) return active;
     const candidates = tabs
-      .filter((t) => !(t.url ?? '').startsWith(EXTENSION_ORIGIN))
+      .filter((t) => !isExtensionUrl(t.url, EXTENSION_BASE))
       .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0));
     return candidates[0] ?? null;
   } catch {
