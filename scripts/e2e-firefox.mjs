@@ -40,9 +40,11 @@ const fixture = createServer(async (req, res) => {
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   // Test pages derive content from their URL; no request data is injected into HTML.
   res.end(`<!doctype html><html><head><title>Fixture</title></head><body>
-    <span id="status"></span><div id="account">Acme Dev (123456789012)</div><div id="role">AdminRole/jane</div>
+    <span id="status"></span><header id="awsc-nav-header"><span>Recently visited</span>
+    <span id="account" data-testid="account-label">Acme Dev (123456789012)</span><span id="role">AdminRole/jane</span></header>
     <script>const p = new URLSearchParams(location.search); document.title = p.get('title') || 'Firefox fixture';
-    document.getElementById('status').textContent = p.get('status') || 'To Do';</script></body></html>`);
+    document.getElementById('status').textContent = p.get('status') || 'To Do';
+    if (p.has('role')) document.getElementById('role').textContent = p.get('role');</script></body></html>`);
 });
 await new Promise((resolveListen) => fixture.listen(0, '127.0.0.1', resolveListen));
 const origin = `http://127.0.0.1:${fixture.address().port}`;

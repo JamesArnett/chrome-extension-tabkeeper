@@ -94,7 +94,7 @@ try {
   } });
   await check(tested.ok && tested.status === 'Done', 'group Test reads status from Firefox frames');
 
-  const settings = { ...defaultAwsSettings(), enabled: true, urlPattern: '/aws', selectors: { account: '#account', role: '#role' } };
+  const settings = { ...defaultAwsSettings(), enabled: true, urlPattern: '/aws' };
   await api.storage.sync.set({ awsSettings: settings });
   await sleep(250);
   const aws = await makeTab('/aws?region=us-west-2');
@@ -105,6 +105,18 @@ try {
   const awsTest = await send({ type: 'aws-test', tabId: aws.id, settings });
   await check(awsTest.ok && awsTest.info.accountId === '123456789012' && awsTest.info.region === 'us-west-2',
     'AWS navigation labels and URL region are read in Firefox');
+
+  for (const [role, expectedRole] of [['root', 'root'], ['Recently visited', '']]) {
+    const tab = await makeTab(`/aws?region=us-west-2&role=${encodeURIComponent(role)}`);
+    const expectedTitle = expectedRole ? `Acme Dev · ${expectedRole}` : 'Acme Dev';
+    await until(async () => {
+      const current = await api.tabs.get(tab.id);
+      return current.groupId !== -1 && (await groupTitle(current.groupId)) === expectedTitle;
+    }, `AWS identity ${role}`);
+    const testedIdentity = await send({ type: 'aws-test', tabId: tab.id, settings });
+    await check(testedIdentity.ok && testedIdentity.info.role === expectedRole && testedIdentity.info.user === '',
+      role === 'root' ? 'AWS root session is recognized in Firefox' : 'AWS unmatched navigation text is excluded from Firefox group titles');
+  }
 
   // Exercise real options-page CRUD without a native permission prompt.
   document.getElementById('tab-group').click();

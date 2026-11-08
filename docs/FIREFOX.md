@@ -61,6 +61,8 @@ pre-grant the loopback fixture permission in the disposable copy.
   about `chrome-extension://`. Web-page readers cannot invoke settings-only messages.
 - Collapsing a Firefox group containing the active tab leaves that tab active/visible. Chrome may move focus
   outside the group. Keep, countdown timing and pinned protection retain the same intended behavior.
+- AWS identity reads accept `role/user` and `root` sessions in both browsers. Text from a failed role match
+  remains diagnostic only; unrelated navigation headings never become the role in a group title.
 - Help, sync wording and extension-settings controls adapt to the browser. Firefox blocks extensions opening
   `about:addons` through `tabs.create`, so its button shows access instructions; Chrome opens its settings page. Chrome Sync and Firefox Sync are separate;
   transfer settings between browsers with JSON export/import. This extension does not provide its own sync server.

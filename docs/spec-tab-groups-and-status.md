@@ -492,3 +492,11 @@ must reflect the running browser. Browser-managed sync does not transfer rules b
 Firefox's native collapse behavior may leave the active tab visible while the other group members collapse;
 do not move or close the active tab merely to emulate Chrome's native presentation. Other grouping, status,
 Keep and age-close behavior remains as specified above. Android is not a supported target.
+
+## AWS identity reads (2026-11-07)
+
+AWS role selectors accept a complete `role/user` label or the complete label `root`. A successful read is
+split into role and user; `root` has no separate user. If no selected element matches, retain its raw text
+for Test diagnostics only. Failed or empty role reads must leave role/user absent from the composed group
+title, never substitute unrelated navigation text such as “Recently visited”. Account and region fields
+may still supply a partial title. Cover root sessions and failed matches in both browser integration suites.

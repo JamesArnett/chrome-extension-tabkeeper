@@ -645,6 +645,15 @@ try {
   }, { timeout: 15000, label: 'other account gets its own group' });
   assert((await groupTitle(awsG3)) === 'Prod · ReadOnly', `other account/role group (${await groupTitle(awsG3)})`);
 
+  for (const [role, expected] of [['root', 'Acme Dev · root'], ['Recently visited', 'Acme Dev']]) {
+    const id = await cdp.eval(sw, `chrome.tabs.create({ url: ${JSON.stringify(awsUrl(`account=Acme%20Dev%20(123456789012)&role=${encodeURIComponent(role)}`))}, active: false }).then(t => t.id)`);
+    await waitFor(async () => {
+      const gid = await tabGroup(id);
+      return gid !== -1 && (await groupTitle(gid)) === expected;
+    }, { label: `AWS identity ${role}` });
+    assert(true, role === 'root' ? 'AWS root session has the correct group title' : 'AWS unmatched navigation text is excluded from group titles');
+  }
+
   console.log('settings AWS view: preview and Test');
   await cdp.eval(sw, `chrome.tabs.update(${aws1}, { active: true })`);
   await sleep(200);
