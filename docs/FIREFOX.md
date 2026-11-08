@@ -87,6 +87,24 @@ local processing; do not copy a store's checkbox interpretation into another sto
 7. Explain to reviewers that Tabkeeper has no login. Optional third-party status/AWS reads use an existing site
    session and optional site access, with no AWS keys or developer account required by the extension.
 
+## AMO listing screenshots
+
+Actual Firefox captures are in `store/firefox/`, ordered for the listing:
+
+| File | Suggested caption |
+| --- | --- |
+| `screenshot-1-close-countdown.png` | Review tabs closing soon and keep any tab with one click. |
+| `screenshot-2-jira-to-do.png` | Group a Jira ticket with its current To Do status. |
+| `screenshot-3-jira-in-progress.png` | The group title follows the ticket to In Progress. |
+| `screenshot-4-jira-done.png` | See the completed ticket's Done status in its group title. |
+| `screenshot-5-aws-console-grouping.png` | Group AWS Console tabs by session labels and choose the title fields. |
+| `screenshot-6-jira-grouping-settings.png` | Manage grouping rules and apply them to current or open tabs. |
+
+Use the first five as the core set; the sixth adds a view of the grouping controls. All six are 1280×800 RGB
+PNGs with an sRGB profile. Opaque redactions cover the Jira tenant hostname, AWS account/session identifiers,
+and profile photos/initials. External black margins and embedded EXIF/XMP metadata were removed. Cropping and
+proportional resizing preserve the actual browser UI. Keep unredacted originals outside the repository.
+
 ## Automated updates
 
 Create a GitHub environment named `firefox-add-ons`. From the [AMO API credentials page](https://addons.mozilla.org/developers/addon/api/key/),
