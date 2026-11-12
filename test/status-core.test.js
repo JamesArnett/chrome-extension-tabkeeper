@@ -96,7 +96,8 @@ test('sensitive form values are excluded from status and raw diagnostic previews
   const status = el('input', {}, { value: 'In Progress' });
   assert.equal(core.readField(fakeDoc({ input: [credential, status] }), { selector: 'input' }).value, 'In Progress');
   assert.equal(core.applyKeepOnly('a'.repeat(4096) + 'suffix', 'suffix$').error, 'keep-no-match');
-  assert.equal(core.applyKeepOnly('aaaa!', '(a+)+$').error, 'invalid-keep-regex');
+  // Structural rejection of unsafe patterns is tested before matching in regex.test.js.
+  assert.equal(core.applyKeepOnly('status', 'x'.repeat(core.MAX_PATTERN_LENGTH + 1)).error, 'invalid-keep-regex');
 });
 
 test('readFields aggregates counts and joinValues labels values', () => {
