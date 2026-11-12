@@ -149,12 +149,16 @@ test('account id falls back to the hostname prefix when the label lacks it', () 
 });
 
 test('a stored copy of the old default URL pattern is upgraded to the current default', () => {
-  const legacy = '^https://([a-z0-9-]+\\.)?console\\.aws\\.amazon\\.com/';
-  const s = normalizeAwsSettings({ urlPattern: legacy });
-  assert.equal(s.urlPattern, defaultAwsSettings().urlPattern);
-  assert.equal(
-    compileAwsPattern(s).test('https://123456789012-abcd1234.us-west-2.console.aws.amazon.com/console/home?region=us-west-2#'),
-    true,
-  );
+  for (const legacy of [
+    '^https://([a-z0-9-]+\\.)?console\\.aws\\.amazon\\.com/',
+    '^https://([a-z0-9-]+\\.)*console\\.aws\\.amazon\\.com/',
+  ]) {
+    const s = normalizeAwsSettings({ urlPattern: legacy });
+    assert.equal(s.urlPattern, defaultAwsSettings().urlPattern);
+    assert.equal(
+      compileAwsPattern(s).test('https://123456789012-abcd1234.us-west-2.console.aws.amazon.com/console/home?region=us-west-2#'),
+      true,
+    );
+  }
   assert.equal(normalizeAwsSettings({ urlPattern: '^https://my-proxy\\.example/' }).urlPattern, '^https://my-proxy\\.example/', 'real customisations are kept');
 });

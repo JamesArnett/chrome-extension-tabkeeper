@@ -1,6 +1,6 @@
 # Tabkeeper privacy policy
 
-_Last updated: November 7, 2026_
+_Last updated: November 12, 2026_
 
 Tabkeeper is a browser extension that closes and groups your tabs according to rules you write. It has no
 server, no account system, no analytics and no advertising. It makes no network requests and does not send
@@ -16,7 +16,9 @@ as explained below.
 - **Page content, only on sites you approve.** If you create a grouping rule that shows a status from the page
   (for example a ticket state), or turn on AWS Console grouping, your browser asks you to grant access to that site.
   Tabkeeper uses configured selectors to read text or selected form values and show them in tab group titles.
-  Selectors can read input and textarea values; choose non-sensitive status fields. Test results can also show
+  Readers skip password and hidden inputs and form controls with credential, payment-card or one-time-code
+  autocomplete hints. Other input and textarea values can still contain sensitive information; choose
+  non-sensitive status fields. Test results can also show
   raw matched values and the matching element. AWS grouping reads account, role and user labels from console
   navigation and the region from the URL; it does not call AWS APIs or use AWS access keys.
 
@@ -41,16 +43,26 @@ after revocation to remove readers already running there. Revocation does not er
 
 Tabkeeper uses your browser's extension storage and displays derived labels in tab group titles:
 
-- **Your rules and settings** are stored in your browser's extension sync storage. If enabled, Chrome Sync
-  syncs them through your Google account, or Firefox Sync through your Mozilla account. Tabkeeper's developer
-  never receives them. Chrome and Firefox do not sync these settings to each other; you can transfer them manually
-  using settings export/import.
-- **A list of the last 100 tabs Tabkeeper closed** (title, URL, the rule that closed it, and the time), so you can
-  review and reopen them. This stays on the device and can be cleared at any time.
+- **Your rules and settings** are stored in your browser's extension sync storage. These include close and
+  grouping rules, their names, URL/title patterns and page selectors, AWS grouping settings, and age-based closing
+  settings, including the never-close list. Rules and settings can contain internal hostnames or other sensitive
+  information. When browser sync is enabled, Google stores and syncs this data through the Google account signed
+  into Chrome, or Mozilla through the Mozilla account signed into Firefox. Tabkeeper's developer never receives
+  this data. You control sync in your browser's sync settings. Chrome and Firefox do not sync these settings to
+  each other; you can transfer them manually using settings export/import.
+- **A list of the last 100 tabs Tabkeeper closed** (title, web URL, the rule that closed it, and the time), so you
+  can review and reopen them. Stored HTTP/HTTPS URLs retain the origin and path, with credentials, query strings
+  and fragments removed; other URL schemes are omitted. Existing history is scrubbed when the extension starts
+  or history is read. Reopen opens the saved HTTP/HTTPS address, so URL query or fragment state is lost. Titles and
+  URL paths can still contain sensitive information. History stays on the device and can be cleared at any time.
 - **Unfinished rule forms and local preferences**, including pause state and display settings, stay on the device.
 - **Temporary working state** (tabs counting down, tab group records, when a tab was first seen). This is held in
   session storage and is discarded when the browser closes. Group records can contain status and AWS account/role
   labels; those labels can also remain visible in the browser's tab group titles.
+
+Chrome can also save and sync tab group titles when history and tabs sync is enabled for your Google account.
+These titles can contain page status and AWS account, role or user labels. Manage history and tabs sync in
+Chrome's sync settings. [Chrome's tab group sync documentation](https://support.google.com/chrome/answer/2391819?co=GENIE.Platform%3DDesktop&hl=en)
 
 Titles, URLs, custom field values and rules can contain sensitive information. Avoid selectors that expose
 private fields, and review exported settings before sharing them.

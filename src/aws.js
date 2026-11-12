@@ -2,12 +2,13 @@
 // signed-in account and role are, read from the console's navigation bar.
 
 import { collapseWhitespace } from './titles.js';
+import { compileRegex, regexSubject } from './regex.js';
 
 export const AWS_RULE_ID = 'aws-console';
 // Console hosts can carry several labels. With multi-session support the host is
 // <account-id>-<8 chars>.<region>.console.aws.amazon.com
 // (https://docs.aws.amazon.com/awsconsolehelpdocs/latest/gsg/multisession.html).
-export const AWS_DEFAULT_URL_PATTERN = '^https://([a-z0-9-]+\\.)*console\\.aws\\.amazon\\.com/';
+export const AWS_DEFAULT_URL_PATTERN = '^https://(?:[a-z0-9.-]+\\.)?console\\.aws\\.amazon\\.com/';
 export const AWS_HOST_PERMISSION = 'https://*.console.aws.amazon.com/*';
 
 export const AWS_FIELD_ORDER = ['account', 'accountId', 'role', 'user', 'region'];
@@ -46,7 +47,10 @@ export function defaultAwsSettings() {
 }
 
 /** Earlier defaults that were persisted with settings; treated as "not customised" and upgraded. */
-const LEGACY_URL_PATTERNS = new Set(['^https://([a-z0-9-]+\\.)?console\\.aws\\.amazon\\.com/']);
+const LEGACY_URL_PATTERNS = new Set([
+  '^https://([a-z0-9-]+\\.)?console\\.aws\\.amazon\\.com/',
+  '^https://([a-z0-9-]+\\.)*console\\.aws\\.amazon\\.com/',
+]);
 
 export function normalizeAwsSettings(raw) {
   const d = defaultAwsSettings();
@@ -77,14 +81,14 @@ export function normalizeAwsSettings(raw) {
 /** Returns a RegExp or null when the pattern does not compile. */
 export function compileAwsPattern(settings) {
   try {
-    return new RegExp(settings.urlPattern);
+    return compileRegex(settings.urlPattern);
   } catch {
     return null;
   }
 }
 
-export function isAwsConsoleUrl(url, regex = new RegExp(AWS_DEFAULT_URL_PATTERN)) {
-  return typeof url === 'string' && regex.test(url);
+export function isAwsConsoleUrl(url, regex = compileRegex(AWS_DEFAULT_URL_PATTERN)) {
+  return regexSubject(url) !== null && Boolean(regex) && regex.test(url);
 }
 
 const REGION_RE = /^[a-z]{2}(-[a-z]+)+-\d+$/;

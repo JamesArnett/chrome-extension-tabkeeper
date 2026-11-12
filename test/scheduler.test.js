@@ -21,6 +21,52 @@ const rule = (id, overrides = {}) => ({
   ...overrides,
 });
 
+test('a surviving tab is kept for the triggering rule, released from Closing and never logged', async () => {
+  const { tabs, scheduler, storage, clock } = await setup({ rules: [rule('sticky')] });
+  const tab = tabs._add({ title: 'sticky', url: 'https://example.com/form', sticky: true });
+  await scheduler.evaluateTab(tab);
+  await clock.advance(6500);
+  await scheduler.idle();
+  assert.ok(await tabs.get(tab.id));
+  assert.equal((await tabs.get(tab.id)).groupId, -1);
+  assert.equal(scheduler.getPending()[tab.id], undefined);
+  assert.deepEqual(scheduler.getKept()[tab.id], ['sticky']);
+  assert.deepEqual(await storage.getLog(), []);
+  await scheduler.rescanAll();
+  assert.equal(scheduler.getPending()[tab.id], undefined);
+  const restarted = createScheduler({ storage, tabs, alarms: createAlarms(), now: clock.now,
+    setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout });
+  await restarted.start();
+  assert.equal(restarted.getPending()[tab.id], undefined);
+  await restarted.onTabRemoved(tab.id);
+  assert.equal(restarted.getKept()[tab.id], undefined);
+});
+
+test('a tab that closes during confirmation is logged exactly once', async () => {
+  const { tabs, scheduler, storage, clock } = await setup({ rules: [rule('delayed')] });
+  const tab = tabs._add({ title: 'delayed', sticky: true });
+  await scheduler.evaluateTab(tab);
+  clock.setTimeout(() => tabs._close(tab.id), 5500);
+  await clock.advance(6500);
+  await scheduler.idle();
+  assert.equal((await storage.getLog()).length, 1);
+  assert.equal(scheduler.getKept()[tab.id], undefined);
+});
+
+test('a rejected close attempt exempts that rule and releases its Closing group', async () => {
+  const { tabs, scheduler, storage, clock } = await setup({ rules: [rule('rejected')] });
+  const tab = tabs._add({ title: 'rejected' });
+  await scheduler.evaluateTab(tab);
+  tabs.remove = async () => { throw new Error('Close cancelled'); };
+  await clock.advance(5000);
+  await scheduler.idle();
+  assert.equal((await tabs.get(tab.id)).groupId, -1);
+  assert.deepEqual(scheduler.getKept()[tab.id], ['rejected']);
+  assert.deepEqual(await storage.getLog(), []);
+  await scheduler.rescanAll();
+  assert.equal(scheduler.getPending()[tab.id], undefined);
+});
+
 async function setup({ rules = [], tabs: initialTabs = [], paused = false, groups = true } = {}) {
   const chromeStorage = createChromeStorage();
   const storage = createStorage(chromeStorage);

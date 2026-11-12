@@ -42,7 +42,10 @@ Choose what the group title shows.
 
 PRIVATE BY DESIGN
 No servers, no accounts, no analytics. Tabkeeper reads page content only on sites you explicitly approve, and
-no data is sent to the developer. Rules and settings sync through Chrome Sync when enabled.
+no data is sent to the developer. When enabled, Chrome Sync stores and syncs rules and settings through your
+Google account. These can include site URLs, patterns, selectors, AWS grouping settings and age-based closing
+settings. Chrome can also sync tab group titles through its history and tabs sync setting. You control sync in
+Chrome's sync settings.
 
 Shortcuts: Alt+Shift+P pauses closing, Alt+Shift+G groups the current tab.
 ```
@@ -100,10 +103,16 @@ files are generated previews with sample data.
 | `alarms` | Schedules tab closes that are more than 30 seconds away, the once-a-minute check for age-based closing, and the end of a snooze. |
 | Host permissions (optional) `http://*/*`, `https://*/*` | No site access at install. Saving a status rule requests its site origin; Test requests the current tab's site. AWS grouping requests `https://*.console.aws.amazon.com/*` for regional/account console hosts. Chrome grants page access across each approved site, rather than access limited to one selector. The popup explains the scope before the request. |
 
+The `tabs` permission produces Chrome's browsing-history access warning at installation because Tabkeeper reads
+the titles and URLs of open tabs to match rules. Explain this in the listing alongside the optional site-access
+disclosure and link to the privacy policy.
+
 **Remote code:** No, I am not using remote code. All code is in the package.
 
 **Data usage:** Disclose the local processing of open-tab titles/URLs, configured page status values and AWS
-labels, local close history, and Chrome Sync for rules/settings. The extension makes no network requests or
+labels, local close history, and Chrome Sync for rules/settings through the user's Google account. Rules/settings
+can contain internal hostnames and page selectors. Chrome's history and tabs sync can also sync group titles
+containing status or AWS labels. The extension makes no network requests or
 developer uploads, has no analytics, and does not sell data or use it for unrelated purposes or creditworthiness.
 Select the applicable dashboard categories using its current definitions; review **Web history** and **Website
 content** in particular. Keep declarations consistent with the privacy policy, rather than describing local

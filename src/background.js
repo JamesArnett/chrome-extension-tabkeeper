@@ -2,13 +2,14 @@
 // close scheduler and the tab grouper. Listeners are registered synchronously
 // at top level (required by MV3) and wait for start() before acting.
 
-import { api as chrome, isExtensionSender } from './browser-api.js';
+import { api as chrome, isMessageSender } from './browser-api.js';
 import { createStorage } from './storage.js';
 import { createScheduler } from './scheduler.js';
 import { createGrouper } from './grouper.js';
 import { createStatusReader } from './status-reader.js';
 import { createAgeCloser } from './age-closer.js';
 import { computeSourceHash } from './build.js';
+import { readLog } from './log.js';
 
 const storage = createStorage(chrome.storage);
 const scheduler = createScheduler({
@@ -57,7 +58,7 @@ let workerBuild = null;
 computeSourceHash().then((h) => (workerBuild = h), () => {});
 
 // start() runs on every worker boot (install, browser start, wake from suspend).
-const ready = Promise.all([scheduler.start(), grouper.start(), ageCloser.start(), syncSnoozeAlarm()]).catch((err) =>
+const ready = Promise.all([scheduler.start(), grouper.start(), ageCloser.start(), syncSnoozeAlarm(), readLog(storage)]).catch((err) =>
   console.error('[tabkeeper] failed to start', err),
 );
 const whenReady = (fn) => ready.then(fn).catch((err) => console.error('[tabkeeper]', err));
@@ -165,7 +166,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handler = message && handlers[message.type];
   if (!handler) return false;
   // Injected page readers (sender.origin is the web page's) may only send status reports.
-  if (!isExtensionSender(sender, chrome.runtime.id, EXTENSION_BASE) && message.type !== 'status-report') return false;
+  if (!isMessageSender(message.type, sender, chrome.runtime.id, EXTENSION_BASE)) return false;
   ready
     .then(() => handler(message, sender))
     .then(

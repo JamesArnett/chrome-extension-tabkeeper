@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { targetManifest, FIREFOX_ID } from '../scripts/browser-targets.mjs';
-import { isExtensionSender, isExtensionUrl, extensionSettingsUrl, hostPermission } from '../src/browser-api.js';
+import { isExtensionSender, isMessageSender, isExtensionUrl, extensionSettingsUrl, hostPermission } from '../src/browser-api.js';
 import { isIgnoredUrl } from '../src/group-rules.js';
 
 test('Firefox manifest keeps optional host access and supplies its own event-page and AMO identity', () => {
@@ -38,6 +38,17 @@ test('Firefox internal pages are excluded and browser-specific settings links st
   assert.equal(isExtensionUrl('https://example.test/', 'moz-extension://some-id/'), false);
   assert.equal(extensionSettingsUrl('some-id', true), null);
   assert.equal(extensionSettingsUrl('some-id', false), 'chrome://extensions/?id=some-id');
+});
+
+test('status messages require this extension identity and a real sender tab in both browsers', () => {
+  for (const base of ['chrome-extension://extension-id/', 'moz-extension://internal-uuid/']) {
+    const reader = { id: 'extension-id', url: 'https://example.test/', tab: { id: 12 } };
+    assert.equal(isMessageSender('status-report', reader, 'extension-id', base), true);
+    assert.equal(isMessageSender('set-title-limit', reader, 'extension-id', base), false);
+    for (const sender of [{ ...reader, id: 'other' }, { ...reader, id: undefined }, { ...reader, tab: undefined }, { ...reader, tab: { id: -1 } }]) {
+      assert.equal(isMessageSender('status-report', sender, 'extension-id', base), false);
+    }
+  }
 });
 
 test('Firefox host grants omit unsupported ports while Chrome retains its origin pattern', () => {

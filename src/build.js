@@ -18,6 +18,8 @@ export const SOURCE_FILES = [
   'src/titles.js',
   'src/status-reader.js',
   'src/status-core.js',
+  'src/regex.js',
+  'src/import-settings.js',
   'src/reader.js',
   'src/storage.js',
   'src/matcher.js',

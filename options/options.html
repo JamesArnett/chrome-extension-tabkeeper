@@ -135,6 +135,7 @@
   <details id="log-details">
     <summary>Recent closes <span id="log-count" class="count"></span></summary>
     <p id="log-empty" class="muted">Nothing closed yet.</p>
+    <p class="muted small">History keeps web origins and paths with URL credentials, queries and fragments removed. Reopen opens the saved HTTP/HTTPS address.</p>
     <ul id="log-list" class="list"></ul>
     <div class="actions">
       <button type="button" id="clear-log">Clear log</button>
@@ -357,9 +358,17 @@
       <textarea id="import-text" rows="4" spellcheck="false"></textarea>
     </label>
     <div class="actions">
-      <button type="button" id="import-rules">Import</button>
+      <button type="button" id="import-rules">Preview import</button>
     </div>
-    <p class="muted small">Covers close rules, grouping rules, AWS Console settings and options. Rules with a matching id are updated, others are added; settings in the file replace the current ones.</p>
+    <p class="muted small">Imports add disabled copies of rules with a minimum close delay of 60 seconds. Review and enable each rule individually. Select any settings you want to replace in the preview.</p>
+    <section id="import-preview" class="result" hidden aria-label="Import preview">
+      <h2>Review import</h2>
+      <div id="import-summary"></div>
+      <div class="actions">
+        <button type="button" id="confirm-import">Confirm import</button>
+        <button type="button" id="cancel-import">Cancel</button>
+      </div>
+    </section>
     <p id="io-status" class="notice" hidden></p>
   </details>
 

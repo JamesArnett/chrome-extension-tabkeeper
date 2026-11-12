@@ -22,6 +22,12 @@ export function isExtensionSender(sender, extensionId, baseUrl) {
   return sender?.id === extensionId && isExtensionUrl(sender?.url, baseUrl);
 }
 
+export function isMessageSender(type, sender, extensionId, baseUrl) {
+  if (sender?.id !== extensionId) return false;
+  if (type === 'status-report') return Number.isInteger(sender.tab?.id) && sender.tab.id >= 0;
+  return isExtensionSender(sender, extensionId, baseUrl);
+}
+
 export function extensionSettingsUrl(extensionId, firefox = IS_FIREFOX) {
   // Firefox rejects tabs.create for privileged about:addons URLs. Show the
   // manual access instructions rather than offer a silently broken link.

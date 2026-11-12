@@ -39,6 +39,7 @@ export function createScheduler({
   setTimeout: setT = globalThis.setTimeout,
   clearTimeout: clearT = globalThis.clearTimeout,
   shortDelayMs = DEFAULT_SHORT_DELAY_MS,
+  confirmDelayMs = 1500,
   maxLogEntries = MAX_LOG_ENTRIES,
   logger = console,
 }) {
@@ -415,10 +416,22 @@ export function createScheduler({
     try {
       await tabs.remove(tabId);
     } catch (err) {
-      delete pending[tabId];
-      await persistPending();
+      await cancel(tabId, { keep: true });
       logger.warn('[tabkeeper] failed to close tab', tabId, err);
       return { closed: false, reason: 'remove-failed' };
+    }
+
+    // A beforeunload prompt can keep the tab alive after tabs.remove resolves.
+    // Normally the tab is already gone, so only wait when it still exists.
+    let survivor = null;
+    try { survivor = await tabs.get(tabId); } catch { /* closed */ }
+    if (survivor && confirmDelayMs > 0) {
+      await new Promise((resolve) => setT(resolve, confirmDelayMs));
+      try { survivor = await tabs.get(tabId); } catch { survivor = null; }
+    }
+    if (survivor) {
+      await cancel(tabId, { keep: true });
+      return { closed: false, reason: 'tab-survived' };
     }
 
     delete pending[tabId];

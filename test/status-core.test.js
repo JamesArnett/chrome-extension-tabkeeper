@@ -79,6 +79,26 @@ test('readField uses the default Jira selector for a blank selector', () => {
   assert.equal(core.readField(doc, { selector: '' }).value, 'To Do');
 });
 
+test('sensitive form values are excluded from status and raw diagnostic previews', () => {
+  const attrs = [
+    { type: 'password' }, { type: 'hidden' }, { autocomplete: 'current-password' },
+    { autocomplete: 'section-login username' }, { autocomplete: 'one-time-code' },
+    { autocomplete: 'billing cc-number' }, { autocomplete: 'new-password' },
+  ];
+  for (const attributes of attrs) {
+    const node = el('input', attributes, { value: 'secret' });
+    const result = core.readField(fakeDoc({ input: [node] }), { selector: 'input' });
+    assert.equal(result.value, '');
+    assert.equal(result.raw, '');
+    assert.equal(core.textOf(node), '');
+  }
+  const credential = el('input', { type: 'password' }, { value: 'secret' });
+  const status = el('input', {}, { value: 'In Progress' });
+  assert.equal(core.readField(fakeDoc({ input: [credential, status] }), { selector: 'input' }).value, 'In Progress');
+  assert.equal(core.applyKeepOnly('a'.repeat(4096) + 'suffix', 'suffix$').error, 'keep-no-match');
+  assert.equal(core.applyKeepOnly('aaaa!', '(a+)+$').error, 'invalid-keep-regex');
+});
+
 test('readFields aggregates counts and joinValues labels values', () => {
   const doc = fakeDoc({
     '.state': [el('span', {}, { text: 'Open' })],

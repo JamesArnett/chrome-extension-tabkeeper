@@ -170,6 +170,7 @@ cpSync(EXT_DIR, extCopy, {
   recursive: true,
   filter: (src) => !['node_modules', '.git', 'dist'].includes(basename(src)) && !basename(src).startsWith('.'),
 });
+cpSync(join(EXT_DIR, 'scripts', 'fixtures', 'security-browser.js'), join(extCopy, 'help', 'security-browser.js'));
 {
   const manifest = JSON.parse(readFileSync(join(extCopy, 'manifest.json'), 'utf8'));
   manifest.host_permissions = ['https://127.0.0.1/*', 'https://*.console.aws.amazon.com/*'];
@@ -796,6 +797,13 @@ try {
   }
   const historyCount = await cdp.eval(popup.session, `chrome.storage.local.get('log').then(r => r.log.filter(e => e.ruleId === 'history-race').length)`);
   assert(historyCount === 20, 'concurrent worker and page writes retain all 20 history entries');
+
+  console.log('security import and reader checks');
+  const securityMessages = await cdp.eval(popup.session, `(async () => {
+    const { runSecurityChecks } = await import(chrome.runtime.getURL('help/security-browser.js'));
+    return runSecurityChecks({ origin: ${JSON.stringify(FIXTURE_ORIGIN)}, tabId: ${t1} });
+  })()`);
+  for (const message of securityMessages) assert(true, message);
 
   console.log('long grouping grace survives a stopped service worker');
   await cdp.eval(sw, `chrome.storage.sync.set({ 'rule:wake': {
