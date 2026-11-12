@@ -3,6 +3,82 @@
 // <script>, and evaluated in Node tests with vm. Everything about reading a
 // status from a document that does not need the live page lives here.
 (function (root) {
+  const MAX_PATTERN_LENGTH = 500;
+  const MAX_REGEX_INPUT = 4096;
+
+  /** Conservative structural checks. Compilation alone never evaluates page text. */
+  function compileRegex(pattern, flags = '') {
+    if (typeof pattern !== 'string' || pattern.length > MAX_PATTERN_LENGTH) {
+      throw new Error('Regex must be ' + MAX_PATTERN_LENGTH + ' characters or fewer');
+    }
+    const regex = new RegExp(pattern, flags);
+    const groups = [{ repeated: false, alternative: false }];
+    let atom = null;
+    let quantified = false;
+    for (let i = 0; i < pattern.length; i++) {
+      const ch = pattern[i];
+      const group = groups[groups.length - 1];
+      if (ch === '\\') {
+        const next = pattern[++i];
+        if (/[1-9]/.test(next) || (next === 'k' && pattern[i + 1] === '<')) {
+          throw new Error('Backreferences are unsupported in tab and status regexes');
+        }
+        atom = { repeated: false, alternative: false };
+      } else if (ch === '[') {
+        while (++i < pattern.length) {
+          if (pattern[i] === '\\') i++;
+          else if (pattern[i] === ']') break;
+        }
+        atom = { repeated: false, alternative: false };
+      } else if (ch === '(') {
+        groups.push({ repeated: false, alternative: false });
+        atom = null;
+        // Skip group prefixes, including lookarounds and named captures.
+        if (pattern[i + 1] === '?') {
+          i += 2;
+          if (pattern[i] === '<') {
+            if (['=', '!'].includes(pattern[i + 1])) i++;
+            else while (i < pattern.length && pattern[i] !== '>') i++;
+          }
+        }
+      } else if (ch === ')') {
+        atom = groups.pop();
+        const parent = groups[groups.length - 1];
+        parent.repeated ||= atom.repeated;
+        parent.alternative ||= atom.alternative;
+      } else if (ch === '|') {
+        group.alternative = true;
+        atom = null;
+      } else if (ch === '*' || ch === '+' || ch === '?' || ch === '{') {
+        if (ch === '?' && quantified) continue; // lazy quantifier
+        let repeats = ch !== '?';
+        if (ch === '{') {
+          const count = /^\{(\d+)(?:,(\d*))?\}/.exec(pattern.slice(i));
+          if (!count) continue;
+          const max = count[2] === undefined ? Number(count[1]) : count[2] === '' ? Infinity : Number(count[2]);
+          if (max !== Infinity && max > 1000) throw new Error('Regex repetition counts must be 1000 or fewer');
+          repeats = max > 1;
+          i += count[0].length - 1;
+        }
+        if (atom && repeats && (atom.repeated || atom.alternative)) {
+          throw new Error('Repeated groups cannot contain repetition or alternatives; simplify the regex');
+        }
+        group.repeated = true;
+        quantified = true;
+        continue;
+      } else {
+        atom = { repeated: false, alternative: false };
+      }
+      quantified = false;
+    }
+    return regex;
+  }
+
+  /** Skip oversized subjects instead of matching a truncated URL or title. */
+  function regexSubject(value) {
+    return typeof value === 'string' && value.length <= MAX_REGEX_INPUT ? value : null;
+  }
+
   const DEFAULT_SELECTOR =
     '[data-testid="issue.views.issue-base.foundation.status.status-field-wrapper"] button, #status-val';
 
@@ -61,6 +137,13 @@
   function textOf(el) {
     if (!el) return '';
     const tag = String(el.tagName || '').toLowerCase();
+    if (['input', 'textarea', 'select'].includes(tag)) {
+      const type = String(attr(el, 'type') || el.type || '').toLowerCase();
+      const autocomplete = String(attr(el, 'autocomplete') || '').toLowerCase().split(/\s+/);
+      if (['password', 'hidden'].includes(type) || autocomplete.some((token) =>
+        ['username', 'current-password', 'new-password', 'one-time-code'].includes(token) || token.startsWith('cc-')
+      )) return '';
+    }
     let text;
     if (tag === 'select') {
       const opt = el.selectedOptions && el.selectedOptions[0];
@@ -71,14 +154,15 @@
     } else {
       text = el.textContent;
     }
-    return collapseWhitespace(text);
+    return collapseWhitespace(String(text == null ? '' : text).slice(0, MAX_REGEX_INPUT));
   }
 
   function applyKeepOnly(text, pattern) {
+    text = String(text == null ? '' : text).slice(0, MAX_REGEX_INPUT);
     if (!pattern) return { value: text, error: null };
     let re;
     try {
-      re = new RegExp(pattern, 'i');
+      re = compileRegex(pattern, 'i');
     } catch (err) {
       return { value: '', error: ERRORS.INVALID_KEEP_REGEX };
     }
@@ -201,6 +285,10 @@
   }
 
   root.TabkeeperStatusCore = {
+    MAX_PATTERN_LENGTH,
+    MAX_REGEX_INPUT,
+    compileRegex,
+    regexSubject,
     DEFAULT_SELECTOR,
     ERRORS,
     collapseWhitespace,

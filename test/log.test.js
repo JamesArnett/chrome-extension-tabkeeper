@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addLogEntry, clearLog } from '../src/log.js';
+import { addLogEntry, clearLog, historyUrl, readLog } from '../src/log.js';
 import { createStorage } from '../src/storage.js';
 import { createChromeStorage } from './helpers/chrome-mock.js';
 
 test('addLogEntry prepends and caps the log', async () => {
   const s = createStorage(createChromeStorage());
   for (let i = 0; i < 5; i++) await addLogEntry(s, { n: i }, 3);
-  assert.deepEqual(await s.getLog(), [{ n: 4 }, { n: 3 }, { n: 2 }]);
+  assert.deepEqual(await s.getLog(), [{ n: 4, url: '' }, { n: 3, url: '' }, { n: 2, url: '' }]);
   await clearLog(s);
   assert.deepEqual(await s.getLog(), []);
 });
@@ -33,5 +33,21 @@ test('a failed log write does not block later writes', async () => {
   await assert.rejects(addLogEntry(s, { n: 1 }), /write failed/);
   s.setLog = set;
   await addLogEntry(s, { n: 2 });
-  assert.deepEqual(await s.getLog(), [{ n: 2 }]);
+  assert.deepEqual(await s.getLog(), [{ n: 2, url: '' }]);
+});
+
+test('history removes URL credentials, queries and fragments and rejects non-web schemes', () => {
+  assert.equal(historyUrl('https://user:secret@example.com/reset?token=secret#credential'), 'https://example.com/reset');
+  for (const url of ['data:text/html,secret', 'file:///private/secret', 'javascript:alert(1)', 'invalid']) {
+    assert.equal(historyUrl(url), '');
+  }
+});
+
+test('legacy history is scrubbed on disk and a concurrent Clear stays cleared', async () => {
+  const s = createStorage(createChromeStorage());
+  await s.setLog([{ url: 'https://example.com/ticket?token=secret#private' }, { url: 'data:text/html,secret' }]);
+  assert.deepEqual(await readLog(s), [{ url: 'https://example.com/ticket' }, { url: '' }]);
+  assert.deepEqual(await s.getLog(), [{ url: 'https://example.com/ticket' }, { url: '' }]);
+  await Promise.all([readLog(s), clearLog(s)]);
+  assert.deepEqual(await s.getLog(), []);
 });

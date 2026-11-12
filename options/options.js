@@ -15,7 +15,6 @@ import {
   validateCondition,
   summarizeRule,
   exportRules,
-  importRules,
   suggestFieldsFromTab,
 } from '../src/rules.js';
 import {
@@ -28,7 +27,6 @@ import {
   originOf,
   isDynamicTitle,
   summarizeStatusFields,
-  importGroupRules,
 } from '../src/group-rules.js';
 import { PRESETS, getPreset } from '../src/presets.js';
 import {
@@ -41,10 +39,13 @@ import {
   normalizeAwsSettings,
   composeAwsTitle,
 } from '../src/aws.js';
-import { AGE_UNIT_ORDER, defaultCloseSettings, normalizeCloseSettings, parseNeverClose } from '../src/age-closer.js';
+import { AGE_UNIT_ORDER, defaultCloseSettings, normalizeCloseSettings, parseNeverClose, describeLimit } from '../src/age-closer.js';
+import { prepareSettingsImport, hasBroadMatch } from '../src/import-settings.js';
+import { compileRegex } from '../src/regex.js';
+import { clampLimit } from '../src/titles.js';
 import { explainClose } from '../src/explain.js';
 import { compileRule, ruleMatches } from '../src/matcher.js';
-import { compileGroupRules, isIgnoredUrl } from '../src/group-rules.js';
+import { compileGroupRules, matchGroupRules, isIgnoredUrl } from '../src/group-rules.js';
 import { createDraftStore } from '../src/draft.js';
 import { clearLog } from '../src/log.js';
 import {
@@ -77,7 +78,7 @@ const ids = [
   'view-close', 'view-group', 'view-aws',
   'test-close', 'close-test-result', 'rules-empty', 'rule-list', 'rules-filter-note', 'group-rules-filter-note', 'add-rule', 'form-section', 'form-title', 'draft-notice', 'prefill-notice',
   'rule-form', 'save-rule', 'cancel-rule', 'log-details', 'log-count', 'log-empty', 'log-list', 'clear-log',
-  'export-rules', 'import-text', 'import-rules', 'io-status',
+  'export-rules', 'import-text', 'import-rules', 'io-status', 'import-preview', 'import-summary', 'confirm-import', 'cancel-import',
   'opt-open-enabled', 'opt-open-value', 'opt-open-unit', 'opt-idle-enabled', 'opt-idle-value', 'opt-idle-unit', 'opt-error', 'opt-never-close', 'opt-collapse', 'auto-close-details',
   'title-limit', 'save-limit', 'limit-status', 'apply-group', 'apply-all', 'apply-status', 'add-group-rule', 'group-rules-empty', 'group-rule-list',
   'group-form-section', 'group-form-title', 'group-draft-notice', 'preset-select', 'preset-notes', 'group-form', 'swatches', 'status-block', 'status-fields',
@@ -102,6 +103,7 @@ let formState = { open: false, editingId: null };
 let groupFormState = { open: false, editingId: null };
 let pendingTick = null;
 let activeTab = null; // cached at open so permission requests can run synchronously in click handlers
+let pendingImport = null;
 
 // ---------- generic ----------
 
@@ -213,7 +215,7 @@ function groupRuleMatchesTab(rule) {
   const [c] = compileGroupRules([rule]);
   if (!c.regex) return false;
   const { title, url } = tabInfo();
-  return c.regex.test(url) || (title !== '' && c.regex.test(title));
+  return Boolean(matchGroupRules([{ ...c, rule: { ...rule, enabled: true } }], { title, url }));
 }
 
 /** In the popup, show only matching rules and explain where the rest are. */
@@ -532,55 +534,117 @@ async function onExport() {
   setNotice(els.ioStatus, `Exported ${rules.length} close rule${rules.length === 1 ? '' : 's'}, ${groupRules.length} grouping rule${groupRules.length === 1 ? '' : 's'}, AWS Console settings and options.`, 'ok');
 }
 
-async function onImport() {
+function cancelImport() {
+  pendingImport = null;
+  els.importPreview.hidden = true;
+  els.importSummary.replaceChildren();
+}
+
+function importSetting(key, label, details) {
+  const checkbox = el('input', { type: 'checkbox', 'data-import-setting': key });
+  els.importSummary.append(
+    el('label', {}, [checkbox, el('span', { text: ` ${label}` })]),
+    el('p', { class: 'summary', text: details }),
+  );
+}
+
+function onImport() {
+  cancelImport();
   const text = els.importText.value.trim();
   if (!text) {
     setNotice(els.ioStatus, 'Paste an export first.', 'error');
     return;
   }
-  let data;
   try {
-    data = JSON.parse(text);
-  } catch {
-    setNotice(els.ioStatus, 'Not valid JSON.', 'error');
+    pendingImport = prepareSettingsImport(text);
+  } catch (err) {
+    setNotice(els.ioStatus, err instanceof SyntaxError ? 'Not valid JSON.' : err.message, 'error');
     return;
   }
-  const close = importRules(text);
-  const group = importGroupRules(text);
-  if (close.rules.length) await storage.saveRules(close.rules);
-  if (group.rules.length) await storage.saveGroupRules(group.rules);
-  const parts = [];
-  if (close.rules.length) parts.push(`Imported ${close.rules.length} close rule${close.rules.length === 1 ? '' : 's'}.`);
-  if (group.rules.length) parts.push(`Imported ${group.rules.length} grouping rule${group.rules.length === 1 ? '' : 's'}.`);
-  let settingsImported = 0;
-  if (data && typeof data === 'object') {
-    if (data.awsSettings && typeof data.awsSettings === 'object') {
-      awsSettings = normalizeAwsSettings(data.awsSettings);
-      await storage.setAwsSettings(awsSettings);
-      await renderAws();
-      settingsImported++;
-    }
-    if (data.closeSettings && typeof data.closeSettings === 'object') {
-      closeSettings = normalizeCloseSettings(data.closeSettings);
-      await storage.setCloseSettings(closeSettings);
-      renderCloseSettings();
-      settingsImported++;
-    }
-    const limit = data.settings?.maxTitleLength;
-    if (Number.isFinite(limit)) {
-      const res = await send({ type: 'set-title-limit', limit });
-      if (res.ok) {
-        await renderLimit();
-        settingsImported++;
-      }
-    }
+  const plan = pendingImport;
+  els.importSummary.append(el('p', { text: `${plan.rules.length} close rules and ${plan.groupRules.length} grouping rules will be added as disabled copies. Close delays below 60 seconds are raised to 60 seconds.` }));
+  for (const rule of plan.rules) {
+    const grace = rule.groupAfterSeconds ?? 0;
+    const placement = grace >= rule.delaySeconds
+      ? 'Closes without moving to the Closing group.'
+      : `Move to Closing group after ${grace} seconds.`;
+    els.importSummary.append(el('p', { text: [
+      `${rule.name} — ${summarizeRule(rule)}.`,
+      `Closes after ${rule.delaySeconds} seconds when enabled.`,
+      placement,
+    ].join(' ') }));
+    if (hasBroadMatch(rule)) els.importSummary.append(el('p', { class: 'notice warn', text: 'Broad match warning. This rule matches unrelated example websites and could close many tabs when enabled.' }));
   }
-  if (settingsImported) parts.push('Applied settings and options.');
-  const errors = [...close.errors, ...group.errors];
-  if (errors.length) parts.push(`Skipped ${errors.length}: ${errors.join(' | ')}`);
-  const nothing = close.rules.length === 0 && group.rules.length === 0 && settingsImported === 0;
-  setNotice(els.ioStatus, parts.join(' ') || 'Nothing recognisable to import.', nothing ? 'error' : 'ok');
-  if (!nothing) els.importText.value = '';
+  for (const rule of plan.groupRules) {
+    els.importSummary.append(el('p', { text: [
+      `${rule.name} — URL/title regex ${rule.regex}.`,
+      `Group title ${rule.titleTemplate}. Colour ${rule.color} (${rule.colorMode}).`,
+      `Page status ${rule.statusEnabled ? 'enabled' : 'disabled'}. Site ${rule.siteOrigin || '(none)'}.`,
+      summarizeStatusFields(rule.statusFields),
+    ].join(' ') }));
+  }
+  if (plan.awsSettings) {
+    const a = plan.awsSettings;
+    const fields = AWS_FIELD_ORDER.filter((key) => a.fields[key]).map((key) => AWS_FIELD_LABELS[key]);
+    importSetting('aws', 'Replace AWS Console settings', [
+      `Grouping ${a.enabled ? 'enabled' : 'disabled'}. Fields ${fields.join(', ') || '(none)'}.`,
+      `Separator "${a.separator}". URL regex ${a.urlPattern}.`,
+      `Account selector ${a.selectors.account}. Role selector ${a.selectors.role}.`,
+    ].join(' '));
+  }
+  if (plan.closeSettings) {
+    const c = plan.closeSettings;
+    importSetting('age', 'Replace age-based closing settings and the never-close list', [
+      `Open limit ${c.maxOpen.enabled ? describeLimit(c.maxOpen) : 'off'}.`,
+      `Idle limit ${c.maxIdle.enabled ? describeLimit(c.maxIdle) : 'off'}.`,
+      `Never-close list ${c.neverClose.join(', ') || '(empty — clears the current list)'}.`,
+      `Collapse Closing group ${c.collapseClosingGroup ? 'on' : 'off'}. Enabled limits apply to existing tabs.`,
+    ].join(' '));
+  }
+  if (plan.maxTitleLength !== null) {
+    const limit = clampLimit(plan.maxTitleLength);
+    importSetting('limit', 'Replace the group title length limit', limit ? `New limit ${limit} characters.` : 'New limit is unlimited.');
+  }
+  for (const error of plan.errors) els.importSummary.append(el('p', { class: 'error', text: error }));
+  const empty = !plan.rules.length && !plan.groupRules.length && !plan.awsSettings && !plan.closeSettings && plan.maxTitleLength === null;
+  els.confirmImport.disabled = empty;
+  els.importPreview.hidden = false;
+  setNotice(els.ioStatus, empty ? 'Nothing recognisable to import.' : 'Review the import, then choose Confirm import.', empty ? 'error' : '');
+}
+
+async function confirmImport() {
+  const plan = pendingImport;
+  if (!plan || els.confirmImport.disabled) return;
+  const selected = new Set([...els.importSummary.querySelectorAll('input:checked')].map((node) => node.dataset.importSetting));
+  if (selected.has('age') && !confirm('Replace the current age-based closing limits and never-close list? Enabled limits can close existing tabs immediately.')) return;
+  if (!plan.rules.length && !plan.groupRules.length && selected.size === 0) {
+    setNotice(els.ioStatus, 'Select the settings you want to import.', 'error');
+    return;
+  }
+  els.confirmImport.disabled = true;
+  els.importRules.disabled = true;
+  els.cancelImport.disabled = true;
+  els.importText.disabled = true;
+  try {
+    if (plan.rules.length) await storage.saveRules(plan.rules);
+    if (plan.groupRules.length) await storage.saveGroupRules(plan.groupRules);
+    if (selected.has('aws')) await storage.setAwsSettings(plan.awsSettings);
+    if (selected.has('age')) await storage.setCloseSettings(plan.closeSettings);
+    if (selected.has('limit')) {
+      const res = await send({ type: 'set-title-limit', limit: plan.maxTitleLength });
+      if (!res.ok) throw new Error(res.error || 'Could not set the title limit');
+    }
+    setNotice(els.ioStatus, `Imported ${plan.rules.length} disabled close rules and ${plan.groupRules.length} disabled grouping rules. Applied ${selected.size} selected settings.`, 'ok');
+    els.importText.value = '';
+    cancelImport();
+  } catch (err) {
+    setNotice(els.ioStatus, `Import stopped. Some items may have been saved. Retry to finish this import. ${err.message}`, 'error');
+  } finally {
+    els.confirmImport.disabled = false;
+    els.importRules.disabled = false;
+    els.cancelImport.disabled = false;
+    els.importText.disabled = false;
+  }
 }
 
 // ======================================================================
@@ -1085,7 +1149,7 @@ function readAwsControls() {
 function validateAwsAdvanced(settings) {
   const problems = [];
   try {
-    new RegExp(settings.urlPattern);
+    compileRegex(settings.urlPattern);
   } catch (err) {
     problems.push(`Console URL regex does not compile: ${err.message}`);
   }
@@ -1099,13 +1163,17 @@ function validateAwsAdvanced(settings) {
 
 async function onAwsChange() {
   const next = readAwsControls();
-  validateAwsAdvanced(next);
+  if (!validateAwsAdvanced(next)) return;
   awsSettings = next;
   await storage.setAwsSettings(awsSettings);
   await renderAws();
 }
 
 async function onAwsEnabledChange(event) {
+  if (!validateAwsAdvanced(readAwsControls())) {
+    els.awsEnabled.checked = awsSettings.enabled;
+    return;
+  }
   let permission = null;
   if (event.target.checked) permission = chrome.permissions.request({ origins: [AWS_HOST_PERMISSION] }).catch(() => false);
   await onAwsChange();
@@ -1277,6 +1345,9 @@ async function init() {
   for (const input of [els.optOpenEnabled, els.optOpenValue, els.optOpenUnit, els.optIdleEnabled, els.optIdleValue, els.optIdleUnit, els.optNeverClose, els.optCollapse]) input.addEventListener('change', onCloseSettingsChange);
   els.exportRules.addEventListener('click', onExport);
   els.importRules.addEventListener('click', onImport);
+  els.confirmImport.addEventListener('click', confirmImport);
+  els.cancelImport.addEventListener('click', cancelImport);
+  els.importText.addEventListener('input', cancelImport);
 
   // group view
   els.saveLimit.addEventListener('click', onSaveLimit);

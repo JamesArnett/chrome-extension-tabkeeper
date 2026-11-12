@@ -2,6 +2,27 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, rmSync
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+function sarifRule(tool, result) {
+  const reference = result.rule;
+  const componentReference = reference?.toolComponent;
+  let component = tool.driver;
+  if (componentReference?.index >= 0) {
+    component = tool.extensions?.[componentReference.index];
+  } else if (componentReference?.name || componentReference?.guid) {
+    component = [tool.driver, ...(tool.extensions ?? [])].find((candidate) =>
+      candidate &&
+      (!componentReference.name || candidate.name === componentReference.name) &&
+      (!componentReference.guid || candidate.guid === componentReference.guid),
+    );
+  }
+  const rules = component?.rules ?? [];
+  const index = reference?.index ?? result.ruleIndex;
+  const id = reference?.id ?? result.ruleId;
+  return rules[index] ?? rules.find((rule) =>
+    (id && rule.id === id) || (reference?.guid && rule.guid === reference.guid),
+  );
+}
+
 export function summarizeSarif(documents) {
   let findings = 0;
   let blocking = 0;
@@ -17,9 +38,10 @@ export function summarizeSarif(documents) {
         if (result.suppressions?.some((s) => s.status === 'accepted')) continue;
         if (result.kind && result.kind !== 'fail') continue;
         findings++;
-        const rule = run.tool.driver.rules?.find((r) => r.id === result.ruleId);
+        const rule = sarifRule(run.tool, result);
         const severity = Number(rule?.properties?.['security-severity']);
-        if (severity >= 7 || result.level === 'error') blocking++;
+        const level = result.level ?? rule?.defaultConfiguration?.level ?? 'warning';
+        if (severity >= 7 || level === 'error') blocking++;
       }
     }
   }

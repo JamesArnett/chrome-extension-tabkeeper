@@ -64,6 +64,13 @@ boundaries, storage layout and naming that fit this codebase.
 - A rule whose regex does not compile is skipped and an error is logged. It must not stop other rules from
   being evaluated.
 - Compile each regex once per rule change, not on every tab event.
+- Close-rule, grouping, AWS URL and keep-only regexes share a 500-character pattern cap and conservative
+  structural checks. Repeated groups containing repetition or alternatives, backreferences, and finite
+  repetition counts above 1,000 are rejected on Save/import and during runtime compilation, including synced
+  or previously saved rules. These checks can reject some valid patterns and reduce backtracking risks without
+  providing a guaranteed execution deadline.
+- URL/title regex matching skips subjects longer than 4,096 characters. Page status text and raw previews
+  use only the first 4,096 characters before keep-only matching. The ordinary 80-character status cap still applies.
 
 ### Resolving the base title
 
@@ -163,6 +170,9 @@ the popup always shows at least one row.
 
 - `<select>`: the text of the selected option, falling back to the control's value.
 - `<input>` and `<textarea>`: the control's value.
+- Skip password and hidden inputs. Skip input, textarea and select controls whose autocomplete tokens include
+  username, current-password, new-password, one-time-code or any `cc-` payment-card hint. Excluded controls provide
+  neither a value nor raw diagnostic text; continue to later matches or selector alternatives.
 - Anything else: `textContent`.
 - In all cases, collapse whitespace runs to one space and trim. An element whose text is empty after this
   does not count as a match; keep looking.
@@ -311,6 +321,7 @@ keeping titles short, things to know). Keep the help page and any Markdown docs 
 
 - Regex is required; title template is required for Save but not for Test.
 - Regex must compile.
+- Apply the shared regex safety checks described under Matching to URL and keep-only patterns.
 - If the template uses `$N`, the regex must contain at least one unescaped capturing group `(` not followed
   by `?`. Otherwise explain how to add one.
 - Each status selector must be valid CSS (probe it with `querySelector` in a try/catch) and each "keep only"

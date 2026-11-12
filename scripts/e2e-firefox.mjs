@@ -79,6 +79,7 @@ try {
   manifest.host_permissions = ['http://127.0.0.1/*'];
   writeFileSync(join(source, 'manifest.json'), JSON.stringify(manifest));
   cpSync(join(root, 'scripts', 'fixtures', 'firefox-browser.js'), join(source, 'help', 'firefox-browser.js'));
+  cpSync(join(root, 'scripts', 'fixtures', 'security-browser.js'), join(source, 'help', 'security-browser.js'));
   writeFileSync(join(source, 'help', 'test-config.json'), JSON.stringify({ origin }));
   // First-install guide starts a normal extension settings tab containing the
   // test module. It uses extension APIs only, never Firefox internals.

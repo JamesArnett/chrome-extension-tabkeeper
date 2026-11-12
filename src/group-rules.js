@@ -3,6 +3,7 @@
 
 import { collapseWhitespace } from './titles.js';
 import { generateId, MAX_NAME_LENGTH, MAX_PATTERN_LENGTH } from './rules.js';
+import { compileRegex, regexSubject } from './regex.js';
 
 // chrome.tabGroups.Color: the nine colours Chrome allows. Custom colours are not possible.
 export const GROUP_COLORS = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
@@ -136,7 +137,7 @@ export function validateGroupRule(rule, { forTest = false, probeSelector = null,
     errors.regex = `Regex must be ${MAX_PATTERN_LENGTH} characters or fewer`;
   } else {
     try {
-      new RegExp(rule.regex);
+      compileRegex(rule.regex);
     } catch (err) {
       errors.regex = `Regex does not compile: ${err.message}`;
     }
@@ -161,7 +162,7 @@ export function validateGroupRule(rule, { forTest = false, probeSelector = null,
       }
       if (field.keepOnly) {
         try {
-          new RegExp(field.keepOnly, 'i');
+          compileRegex(field.keepOnly, 'i');
         } catch (err) {
           errors[`field${n}`] = `Field ${n}: "keep only" regex does not compile: ${err.message}`;
         }
@@ -178,7 +179,7 @@ export function compileGroupRules(rules) {
   return rules.map((rule) => {
     try {
       if (!rule.regex) throw new Error('empty regex');
-      return { rule, regex: new RegExp(rule.regex), error: null };
+      return { rule, regex: compileRegex(rule.regex), error: null };
     } catch (err) {
       return { rule, regex: null, error: err.message };
     }
@@ -196,7 +197,7 @@ export function matchGroupRules(compiled, { url, title }) {
     { text: typeof url === 'string' ? url : '', on: 'url' },
     { text: typeof title === 'string' ? title : '', on: 'title' },
   ]) {
-    if (!subject.text) continue;
+    if (!subject.text || regexSubject(subject.text) === null) continue;
     for (const c of candidates) {
       const match = c.regex.exec(subject.text);
       if (match) return { rule: c.rule, match, matchedOn: subject.on };

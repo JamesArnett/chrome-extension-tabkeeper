@@ -1,5 +1,6 @@
 // Helpers shared by the quick popup and the settings page.
 import { api as chrome, isExtensionUrl } from '../src/browser-api.js';
+import { historyUrl, readLog } from '../src/log.js';
 
 export const $ = (id) => document.getElementById(id);
 
@@ -131,13 +132,13 @@ export async function renderPendingList(storage, { section, list, onKeep }) {
 }
 
 export async function renderLogList(storage, { count, empty, list, clearButton, onReopen }) {
-  const log = await storage.getLog();
+  const log = await readLog(storage);
   if (count) count.textContent = log.length ? `(${log.length})` : '';
   empty.hidden = log.length > 0;
   if (clearButton) clearButton.disabled = log.length === 0;
   list.replaceChildren();
   for (const entry of log) {
-    const canReopen = typeof entry.url === 'string' && /^(https?|file|data):/i.test(entry.url);
+    const canReopen = Boolean(historyUrl(entry.url));
     list.append(
       el('li', {}, [
         el('span', { class: 'name', text: entry.title || '(untitled)' }),
@@ -153,8 +154,10 @@ export async function renderLogList(storage, { count, empty, list, clearButton, 
 }
 
 export async function reopenEntry(entry) {
+  const url = historyUrl(entry?.url);
+  if (!url) return false;
   try {
-    await chrome.tabs.create({ url: entry.url, active: false });
+    await chrome.tabs.create({ url, active: false });
     return true;
   } catch {
     return false;

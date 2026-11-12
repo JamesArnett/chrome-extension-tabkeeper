@@ -1,5 +1,6 @@
 // Compiles rules into predicate functions and evaluates tabs against them.
 // Pure module: no chrome.* access.
+import { compileRegex, regexSubject } from './regex.js';
 
 /** Returns a (string) => boolean predicate, or null for an absent condition. Throws on bad input. */
 export function compileCondition(cond) {
@@ -8,8 +9,8 @@ export function compileCondition(cond) {
   if (typeof pattern !== 'string') throw new Error('Pattern must be a string');
 
   if (mode === 'regex') {
-    const re = new RegExp(pattern, caseSensitive ? '' : 'i');
-    return (s) => re.test(s);
+    const re = compileRegex(pattern, caseSensitive ? '' : 'i');
+    return (s) => regexSubject(s) !== null && re.test(s);
   }
 
   const needle = caseSensitive ? pattern : pattern.toLowerCase();

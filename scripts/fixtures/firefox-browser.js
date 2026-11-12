@@ -5,6 +5,7 @@ import { defaultAwsSettings } from '../src/aws.js';
 import { defaultCloseSettings } from '../src/age-closer.js';
 import { createStorage } from '../src/storage.js';
 import { addLogEntry } from '../src/log.js';
+import { runSecurityChecks } from './security-browser.js';
 
 const { origin } = await (await fetch(api.runtime.getURL('help/test-config.json'))).json();
 const post = (path, body) => fetch(origin + path, { method: 'POST', body: JSON.stringify(body) });
@@ -59,7 +60,7 @@ try {
   await check((await api.tabs.get(kept.id)).groupId === -1, 'Keep restores the tab outside Closing');
   const closed = await makeTab('/close-me?title=Close');
   await until(async () => !(await api.tabs.query({})).some((tab) => tab.id === closed.id), 'matching close');
-  await check((await api.storage.local.get('log')).log.some((entry) => entry.url.endsWith('/close-me?title=Close')), 'actual closes are logged');
+  await check((await api.storage.local.get('log')).log.some((entry) => entry.url.endsWith('/close-me') && !entry.url.includes('?')), 'actual closes are logged without URL queries');
   const pinned = await api.tabs.create({ url: origin + '/close-me?pinned=1', pinned: true, active: false });
   await sleep(2300);
   await check(Boolean(await api.tabs.get(pinned.id)) && !(await pending())[pinned.id], 'pinned matching tab is protected');
@@ -157,6 +158,7 @@ try {
   await check(true, 'Firefox background and settings preserve all 20 concurrent history writes');
 
   // Exercise a real long grouping alarm while leaving the event page idle.
+  for (const message of await runSecurityChecks({ origin, tabId: ticket.id })) await check(true, message);
   await api.storage.sync.set({ 'rule:ff-alarm': {
     id: 'ff-alarm', name: 'Firefox alarm', enabled: true, title: null,
     url: { mode: 'contains', pattern: '/alarm-check', caseSensitive: false },
@@ -176,12 +178,19 @@ try {
   await until(async () => !(await api.tabs.query({})).some((tab) => tab.id === old.id), 'age sweep closes old tab');
   await check(sweep.ok && Boolean(await api.tabs.get(pinned.id)), 'Firefox age sweep closes an old tab while keeping pinned tabs');
 
+  const permissionTab = await makeTab('/ticket/FX-999?status=Denied');
+  await until(async () => {
+    const tab = await api.tabs.get(permissionTab.id);
+    return tab.url.startsWith(origin + '/ticket/FX-999') && tab.status === 'complete';
+  }, 'permission fixture loaded');
   await api.permissions.remove({ origins: ['http://127.0.0.1/*'] });
-  const denied = await send({ type: 'group-test', tabId: ticket.id, rule: {
+  const denied = await send({ type: 'group-test', tabId: permissionTab.id, rule: {
     regex: '/ticket/([A-Z]+-[0-9]+)', titleTemplate: '$1', color: 'blue', colorMode: 'fixed',
     statusEnabled: true, statusFields: [{ selector: '#status', keepOnly: '', label: '' }], siteOrigin: origin,
   } });
-  if (!denied.ok || denied.error !== 'access-not-granted') throw new Error('Revoked host permission must prevent new page reads.');
+  if (!denied.ok || denied.error !== 'access-not-granted') {
+    throw new Error(`Revoked host permission must prevent new page reads: ${JSON.stringify(denied)}`);
+  }
   // Navigation can report success after removing the extension's fetch grant.
   await api.tabs.create({ url: origin + '/passed', active: false });
 } catch (error) {

@@ -101,6 +101,10 @@
     field's value and the element it was read from, and the final title exactly as it would appear. Nothing is
     grouped and nothing is watched. Your browser asks for permission to read the site the first time; grouping works
     without it, but the status does not.</p>
+  <p>Regex patterns are limited to 500 characters. Repeated groups containing repetition or alternatives,
+    backreferences and finite repetition counts over 1,000 are rejected. URL/title regex matching skips text
+    over 4,096 characters; page status reads and raw previews use the first 4,096 characters. These checks
+    reduce the risk of expensive matches and can require simplifying an existing pattern.</p>
 
   <h2>8. Keeping titles short</h2>
   <p>Your browser shows a group title on one line and cuts the end when the tab strip is crowded, which is where the
@@ -121,6 +125,14 @@
     <li>Only groups the extension created or adopted in this browser session are renamed; after a browser
       restart they are recognised again by their title.</li>
   </ul>
+  <h2>Importing settings</h2>
+  <p>Paste an export into <strong>Import / export all settings</strong>, then choose <strong>Preview import</strong>.
+    Review each rule and any broad-match warning before choosing <strong>Confirm import</strong>. Rules are added
+    as disabled copies with new IDs, including when the file contains an existing rule's ID. Imported close delays
+    below 60 seconds become 60 seconds. Enable each rule individually after reviewing it.</p>
+  <p>AWS settings, age-based closing settings and the group title limit each require their own selection in the
+    preview. Replacing age limits and the never-close list requires an additional confirmation, because enabled
+    limits apply to existing tabs.</p>
   <section id="privacy" aria-labelledby="privacy-heading">
     <h1 id="privacy-heading">Permissions, site access and your data</h1>
     <p>Tabkeeper has no developer server, account system, analytics or advertising. It makes no network requests.
@@ -139,7 +151,9 @@
     <p><strong>The browser permission is broader than the reader's intended use.</strong> Your browser grants page access
       for the approved site, not a restriction to one selector. Tabkeeper uses your configured selectors to read
       status text or selected form values; it does not edit the page. Choose only non-sensitive status fields:
-      a selector can read an input or textarea value, and that value may appear in a tab group title or Test results.</p>
+      a selector can read an input or textarea value, and that value may appear in a tab group title or Test results.
+      Readers skip password and hidden inputs and controls with credential, payment-card or one-time-code
+      autocomplete hints, including in raw Test previews.</p>
     <p>AWS grouping requests <code>https://*.console.aws.amazon.com/*</code> to cover the console's regional and
       account subdomains, including multi-session hosts. It reads account, role and user labels from the console
       navigation and the region from the URL. It does not call AWS APIs or use AWS access keys.</p>
@@ -151,12 +165,16 @@
     <ul>
       <li><strong>Rules and settings:</strong> Browser sync storage. With <span data-browser-copy="sync">Chrome Sync</span> enabled, the browser provider may store
         and sync them to your other browsers. Rules can contain site URLs, patterns and selectors; avoid putting secrets in them.</li>
-      <li><strong>On this device:</strong> the last 100 tabs Tabkeeper closed (title, URL, rule and time), unfinished
-        rule forms, pause state and display preferences. You can clear the close history in the popup or settings.</li>
+      <li><strong>On this device:</strong> the last 100 tabs Tabkeeper closed (title, web URL, rule and time), unfinished
+        rule forms, pause state and display preferences. History URLs retain their origin and path with credentials,
+        queries and fragments removed. Existing history is scrubbed when the extension starts or history is read.
+        Reopen opens the saved HTTP/HTTPS address, so URL query or fragment state is lost. You can clear the close
+        history in the popup or settings.</li>
       <li><strong>Browser-session state:</strong> countdowns, Keep choices, tab timing and group records, including
         status/account labels used in group titles. This extension session storage is cleared when the browser closes.</li>
-      <li><strong>Visible output:</strong> group titles can contain ticket status or AWS labels. Tab titles and URLs,
-        including any sensitive URL parameters, can also appear in the close history. Review exports before sharing them.</li>
+      <li><strong>Visible output:</strong> group titles can contain ticket status or AWS labels. Chrome can save and
+        sync these titles through its history and tabs sync setting. Tab titles and URL paths can also contain
+        sensitive information in the close history. Review exports before sharing them.</li>
     </ul>
 
     <h2>What is not gathered or sent?</h2>

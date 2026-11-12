@@ -1,5 +1,6 @@
 // Rule schema, validation, normalization, and import/export.
 // Pure module: no chrome.* access, safe to unit test in Node.
+import { compileRegex, MAX_PATTERN_LENGTH } from './regex.js';
 
 export const MODES = ['contains', 'startsWith', 'endsWith', 'equals', 'regex'];
 export const MODE_LABELS = {
@@ -9,7 +10,7 @@ export const MODE_LABELS = {
   equals: 'equals',
   regex: 'matches regex',
 };
-export const MAX_PATTERN_LENGTH = 500;
+export { MAX_PATTERN_LENGTH };
 export const MAX_NAME_LENGTH = 100;
 export const MAX_DELAY_SECONDS = 86400;
 export const DEFAULT_DELAY_SECONDS = 60;
@@ -48,7 +49,7 @@ export function validateCondition(cond) {
   if (typeof cond.caseSensitive !== 'boolean') return 'caseSensitive must be true or false';
   if (cond.mode === 'regex') {
     try {
-      new RegExp(cond.pattern, cond.caseSensitive ? '' : 'i');
+      compileRegex(cond.pattern, cond.caseSensitive ? '' : 'i');
     } catch (err) {
       return `Invalid regex: ${err.message}`;
     }

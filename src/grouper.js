@@ -21,6 +21,7 @@ import {
   AWS_RULE_ID,
   normalizeAwsSettings,
   compileAwsPattern,
+  isAwsConsoleUrl,
   awsReadFields,
   parseAwsRead,
   composeAwsTitle,
@@ -72,7 +73,7 @@ export function createGrouper({
   }
 
   function isAwsTab(tab) {
-    return aws.enabled && awsRegex !== null && typeof tab.url === 'string' && awsRegex.test(tab.url);
+    return aws.enabled && isAwsConsoleUrl(tab.url, awsRegex);
   }
 
   function randomColor() {
@@ -237,7 +238,7 @@ export function createGrouper({
       out.error = 'invalid-regex';
       return out;
     }
-    if (!regex.test(tab.url)) {
+    if (!isAwsConsoleUrl(tab.url, regex)) {
       out.error = 'not-aws';
       return out;
     }
