@@ -1,8 +1,8 @@
 # Releasing Tabkeeper
 
-The next source version is **1.1.0**, adding desktop Firefox support. Chrome **1.0.0** was submitted separately;
-changing a development branch does not change that submission. GitHub Actions can publish both browser ZIPs
-and submit store updates. Each store controls its review and approval. Preparing these files does not upload a new store version.
+The next source version is **1.1.1**, hardening settings imports, regex handling, page status reads and tab closing
+for Chrome and desktop Firefox. GitHub Actions can publish both browser ZIPs and submit store updates.
+Each store controls its review and approval.
 
 ## Workflows
 
@@ -13,7 +13,8 @@ and submit store updates. Each store controls its review and approval. Preparing
 | Release | Push a `v<version>` tag | Repeats validation, browser tests and security scans, then creates a GitHub release containing both tested browser ZIPs. |
 | Chrome Web Store | Actions → Chrome Web Store → Run workflow | Checks out, tests and scans the supplied tag, uploads its tested ZIP as a draft, and optionally submits it for review. |
 
-Versions in `manifest.json`, `package.json`, the ZIP, and the release tag must agree. A mismatch fails the run.
+Versions in `manifest.json`, `package.json`, the root package metadata in `package-lock.json`, the ZIP, and the
+release tag must agree. A mismatch between the manifest, package version and tag fails the run.
 The store workflow defaults to **upload only**. Select **Submit** to request review and automatic publication after
 approval. It uses the official v2 API, waits for asynchronous upload completion, and blocks submission on warnings.
 Publishing secrets are only provided to the publishing job, after the checks pass; CI on pull requests has none.
@@ -71,27 +72,27 @@ These checks remain manual; fixture tests are not evidence of live AWS or other 
 
 ## Creating a release
 
-Commit and push the source first. This checkout originally had no commits; preparing workflows does not push it.
-Commit the contributor guidance, behavioral spec, release guide, privacy policy and store listing draft with
-the source. Keep account credentials private. `HANDOFF.md` and `PLAN.md` are local working notes ignored by Git.
+Update the manifest, package and lockfile versions together. Commit and push the release source first, then
+wait for CI and Security to pass. Keep account credentials private. `HANDOFF.md` and `PLAN.md` are local working
+notes ignored by Git.
 
-For the first release, once the manual checks are complete:
+Once the manual checks are complete, validate and create a signed annotated release tag with change details:
 
 ```sh
 npm test
 npm run coverage
 CHROME="/path/to/Chrome for Testing" npm run e2e
 npm run package
-git tag v1.1.0
-git push origin v1.1.0
+git tag -s v1.1.1
+git push origin v1.1.1
 ```
 
 Wait for **Release** to pass. Download the ZIP from the GitHub release or run **Chrome Web Store**, supply
-`v1.1.0`, and choose upload-only or submission. A green submission means the API accepted the request;
+`v1.1.1`, and choose upload-only or submission. A green submission means the API accepted the request;
 check the developer dashboard for review status. If a submission has warnings or fails, fix them in the
 dashboard before retrying. Do not overwrite or move released tags.
 
-For updates, increment both version files, commit and push, then tag that version. Chrome Web Store versions
+For updates, increment the manifest, package and lockfile versions, commit and push, then tag that version. Chrome Web Store versions
 must increase. To revert behavior, ship the previous code with a new, higher version.
 
 API references: [upload](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/media/upload),

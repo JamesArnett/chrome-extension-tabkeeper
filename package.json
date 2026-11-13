@@ -1,6 +1,6 @@
 {
   "name": "tabkeeper",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "license": "MIT",
   "description": "Tabkeeper: a browser extension that closes, groups and labels tabs by rule.",
